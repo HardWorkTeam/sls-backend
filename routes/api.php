@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuthController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Route;
 
@@ -8,3 +9,5 @@ Route::get('/ping', fn (): JsonResponse => response()->json([
     'service' => config('app.name'),
     'timestamp' => now()->toIso8601String(),
 ]));
+
+Route::post('/auth/login', [AuthController::class, 'login']);
