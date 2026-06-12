@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'rsvp' => [
+        // Public RSVP website base URL, used for invitation links + QR codes.
+        'url' => env('RSVP_APP_URL', 'http://localhost:3002'),
+    ],
+
 ];
