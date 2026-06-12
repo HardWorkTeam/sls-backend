@@ -2,14 +2,29 @@
 # this Docker container instead). PHP 8.3 + Apache serving from /public.
 FROM php:8.3-apache
 
-# --- System deps + PHP extensions Laravel/this app needs -----------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        git unzip libpq-dev libzip-dev libonig-dev libicu-dev \
-    && docker-php-ext-install pdo pdo_pgsql pgsql bcmath zip intl mbstring opcache \
+# install-php-extensions reliably installs PHP extensions *with* their system
+# libraries — avoids the "works locally, fails in Docker" missing-ext errors.
+COPY --from=mlocati/php-extension-installer /usr/bin/install-php-extensions /usr/bin/
+
+RUN install-php-extensions \
+        pdo_pgsql \
+        pgsql \
+        bcmath \
+        intl \
+        zip \
+        mbstring \
+        gd \
+        exif \
+        pcntl \
+        opcache
+
+# System tools needed by composer (git/unzip for VCS + dist installs).
+RUN apt-get update && apt-get install -y --no-install-recommends git unzip \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Composer (from the official composer image)
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_MEMORY_LIMIT=-1
 
 # Apache: enable rewrite + headers, point docroot at Laravel's public/
 RUN a2enmod rewrite headers
@@ -25,7 +40,7 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-in
 
 # --- App source ----------------------------------------------------------
 COPY . .
-RUN composer dump-autoload --optimize --no-dev \
+RUN composer dump-autoload --optimize --no-dev --no-scripts \
     && chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
