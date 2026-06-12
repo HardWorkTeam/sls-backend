@@ -1,6 +1,7 @@
 # Laravel backend image for Render (Render has no native PHP runtime — it runs
-# this Docker container instead). PHP 8.3 + Apache serving from /public.
-FROM php:8.3-apache
+# this Docker container instead). PHP 8.4 + Apache serving from /public.
+# Must be 8.4: composer.lock resolved Symfony 8 components that require PHP >=8.4.
+FROM php:8.4-apache
 
 # install-php-extensions reliably installs PHP extensions *with* their system
 # libraries — avoids the "works locally, fails in Docker" missing-ext errors.
