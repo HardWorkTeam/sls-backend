@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\Admin\IncomeController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GalleryController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\GiftController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\GuestGroupController;
@@ -75,6 +77,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::prefix('admin')->group(function () {
             Route::get('/roles', [UserController::class, 'roles']);
             Route::apiResource('users', UserController::class);
+
+            Route::get('/income', [IncomeController::class, 'index']);
+            Route::get('/income/summary', [IncomeController::class, 'summary']);
         });
     });
 
@@ -139,6 +144,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/gifts', [GiftController::class, 'store']);
         Route::put('/gifts/{gift}', [GiftController::class, 'update']);
         Route::delete('/gifts/{gift}', [GiftController::class, 'destroy']);
+
+        Route::get('/expenses', [ExpenseController::class, 'index']);
+        Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
+        Route::post('/expenses', [ExpenseController::class, 'store']);
+        Route::put('/expenses/{expense}', [ExpenseController::class, 'update']);
+        Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy']);
 
         Route::get('/timeline-events', [TimelineEventController::class, 'index']);
         Route::post('/timeline-events', [TimelineEventController::class, 'store']);

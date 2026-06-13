@@ -91,6 +91,11 @@ class Wedding extends Model
         return $this->hasMany(Gift::class);
     }
 
+    public function expenses(): HasMany
+    {
+        return $this->hasMany(Expense::class);
+    }
+
     public function mediaItems(): HasMany
     {
         return $this->hasMany(MediaItem::class);
