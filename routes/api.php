@@ -87,7 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // the user can access (creator, member, or super admin).
     Route::get('/weddings', [WeddingController::class, 'index']);
     Route::post('/weddings', [WeddingController::class, 'store'])
-        ->middleware('role:super_admin,organizer');
+        ->middleware('role:couple');
 
     Route::prefix('weddings/{wedding}')->middleware('wedding.access')->group(function () {
         Route::get('/', [WeddingController::class, 'show']);
