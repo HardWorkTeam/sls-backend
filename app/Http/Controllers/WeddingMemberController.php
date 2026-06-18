@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Wedding\InviteWeddingMemberRequest;
 use App\Http\Requests\Wedding\StoreWeddingMemberRequest;
 use App\Http\Resources\WeddingMemberResource;
 use App\Models\Wedding;
@@ -26,6 +27,16 @@ class WeddingMemberController extends Controller
         $member = $this->weddingService->addMember($wedding, $request->validated());
 
         return WeddingMemberResource::make($member)->response()->setStatusCode(201);
+    }
+
+    public function invite(InviteWeddingMemberRequest $request, Wedding $wedding): JsonResponse
+    {
+        $result = $this->weddingService->inviteMember($wedding, $request->validated());
+
+        return response()->json([
+            'data' => WeddingMemberResource::make($result['member']->load('user.roles')),
+            'temp_password' => $result['temp_password'],
+        ], 201);
     }
 
     public function destroy(Wedding $wedding, WeddingMember $member): JsonResponse

@@ -95,12 +95,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/', [WeddingController::class, 'destroy'])
             ->middleware('role:super_admin,organizer');
         Route::post('/status', [WeddingController::class, 'changeStatus'])
-            ->middleware('role:super_admin,organizer');
+            ->middleware('role:super_admin,organizer,couple');
         Route::get('/dashboard', [WeddingController::class, 'dashboard']);
 
         Route::get('/members', [WeddingMemberController::class, 'index']);
         Route::post('/members', [WeddingMemberController::class, 'store'])
             ->middleware('role:super_admin,organizer');
+        Route::post('/members/invite', [WeddingMemberController::class, 'invite'])
+            ->middleware('role:super_admin,organizer,couple');
         Route::delete('/members/{member}', [WeddingMemberController::class, 'destroy'])
             ->middleware('role:super_admin,organizer');
 

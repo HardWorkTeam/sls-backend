@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RoleKey;
 use App\Enums\WeddingStatus;
 use App\Models\User;
 use App\Models\Wedding;
@@ -19,6 +20,7 @@ class WeddingService
         private readonly WeddingRepository $weddings,
         private readonly RsvpRepository $rsvps,
         private readonly GiftRepository $gifts,
+        private readonly UserService $users,
     ) {}
 
     public function list(User $user, ?string $search, ?string $status, int $perPage = 15): LengthAwarePaginator
@@ -87,6 +89,36 @@ class WeddingService
         }
 
         return $wedding->members()->create($attributes)->load('user');
+    }
+
+    /**
+     * Invite a partner/member by email. Links an existing user, or creates a
+     * new couple account when the email isn't registered yet.
+     *
+     * @param  array{name: string, email: string, member_role: string}  $attributes
+     * @return array{member: WeddingMember, temp_password: string|null}
+     */
+    public function inviteMember(Wedding $wedding, array $attributes): array
+    {
+        $user = User::query()->where('email', $attributes['email'])->first();
+        $tempPassword = null;
+
+        if (! $user) {
+            $tempPassword = Str::password(12, symbols: false);
+            $user = $this->users->create([
+                'name' => $attributes['name'],
+                'email' => $attributes['email'],
+                'password' => $tempPassword,
+                'is_active' => true,
+            ], [RoleKey::Couple->value]);
+        }
+
+        $member = $this->addMember($wedding, [
+            'user_id' => $user->id,
+            'member_role' => $attributes['member_role'],
+        ]);
+
+        return ['member' => $member, 'temp_password' => $tempPassword];
     }
 
     public function removeMember(Wedding $wedding, WeddingMember $member): void
