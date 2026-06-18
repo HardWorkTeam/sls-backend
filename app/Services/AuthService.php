@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\RoleKey;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
@@ -11,6 +12,29 @@ use Illuminate\Validation\ValidationException;
 class AuthService
 {
     private const TOKEN_NAME_FALLBACK = 'api';
+
+    public function __construct(private readonly UserService $users) {}
+
+    /**
+     * Self-service registration: creates a couple account and signs them in.
+     *
+     * @param  array{name: string, email: string, password: string}  $attributes
+     * @return array{user: User, token: string}
+     */
+    public function register(array $attributes, ?string $deviceName = null): array
+    {
+        $user = $this->users->create([
+            'name' => $attributes['name'],
+            'email' => $attributes['email'],
+            'password' => $attributes['password'],
+            'is_active' => true,
+        ], [RoleKey::Couple->value]);
+
+        return [
+            'user' => $user->load('roles.permissions'),
+            'token' => $this->issueToken($user, $deviceName),
+        ];
+    }
 
     /**
      * Attempt to authenticate and issue a fresh Sanctum token.

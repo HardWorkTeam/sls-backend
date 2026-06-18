@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
@@ -15,6 +16,20 @@ use Illuminate\Http\Request;
 class AuthController extends Controller
 {
     public function __construct(private readonly AuthService $authService) {}
+
+    public function register(RegisterRequest $request): JsonResponse
+    {
+        $result = $this->authService->register(
+            $request->validated(),
+            $request->validated('device_name'),
+        );
+
+        return response()->json([
+            'message' => 'Account created.',
+            'token' => $result['token'],
+            'user' => UserResource::make($result['user']),
+        ], 201);
+    }
 
     public function login(LoginRequest $request): JsonResponse
     {

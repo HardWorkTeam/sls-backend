@@ -40,4 +40,9 @@ return [
         'url' => env('RSVP_APP_URL', 'http://localhost:3002'),
     ],
 
+    'client' => [
+        // Couple portal base URL, used for password-reset links.
+        'url' => env('CLIENT_APP_URL', 'http://localhost:3001'),
+    ],
+
 ];
