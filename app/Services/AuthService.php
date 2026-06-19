@@ -6,8 +6,11 @@ use App\Enums\RoleKey;
 use App\Models\User;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
+use Throwable;
 
 class AuthService
 {
@@ -72,7 +75,11 @@ class AuthService
      */
     public function refresh(User $user, ?string $deviceName = null): array
     {
-        $user->currentAccessToken()?->delete();
+        $token = $user->currentAccessToken();
+
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        }
 
         return [
             'user' => $user->load('roles.permissions'),
@@ -82,7 +89,11 @@ class AuthService
 
     public function logout(User $user): void
     {
-        $user->currentAccessToken()?->delete();
+        $token = $user->currentAccessToken();
+
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        }
     }
 
     public function logoutAllDevices(User $user): void
@@ -116,7 +127,19 @@ class AuthService
      */
     public function sendPasswordResetLink(string $email): void
     {
-        $status = Password::sendResetLink(['email' => $email]);
+        try {
+            $status = Password::sendResetLink(['email' => $email]);
+        } catch (Throwable $e) {
+            // The mail provider rejected/failed the send (e.g. Resend refusing a
+            // non-verified recipient). Don't surface a 500 — log it and return
+            // the same generic response (also avoids email enumeration).
+            Log::warning('Password reset email failed to send', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+
+            return;
+        }
 
         if ($status !== Password::RESET_LINK_SENT && $status !== Password::INVALID_USER) {
             // INVALID_USER intentionally returns success to avoid email enumeration.
