@@ -45,4 +45,14 @@ return [
         'url' => env('CLIENT_APP_URL', 'http://localhost:3001'),
     ],
 
+    // Platform's own payment details, shown to couples when paying for a
+    // package (manual KHQR / bank transfer — no payment gateway).
+    'platform_payment' => [
+        'bank_name' => env('PLATFORM_BANK_NAME', 'ABA Bank'),
+        'account_name' => env('PLATFORM_ACCOUNT_NAME', 'Srolanh Management'),
+        'account_number' => env('PLATFORM_ACCOUNT_NUMBER', '000 000 000'),
+        'khqr_image_url' => env('PLATFORM_KHQR_IMAGE_URL'), // a static KHQR QR image
+        'instructions' => env('PLATFORM_PAYMENT_INSTRUCTIONS', 'Scan the KHQR or transfer to the account above, then enter your transaction reference.'),
+    ],
+
 ];

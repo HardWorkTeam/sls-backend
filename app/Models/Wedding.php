@@ -51,6 +51,11 @@ class Wedding extends Model
         return $this->belongsTo(Package::class);
     }
 
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
