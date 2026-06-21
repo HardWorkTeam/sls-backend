@@ -130,9 +130,9 @@ class AuthService
         try {
             $status = Password::sendResetLink(['email' => $email]);
         } catch (Throwable $e) {
-            // The mail provider rejected/failed the send (e.g. Resend refusing a
-            // non-verified recipient). Don't surface a 500 — log it and return
-            // the same generic response (also avoids email enumeration).
+            // The mail provider rejected/failed the send (e.g. an unverified
+            // recipient or sender). Don't surface a 500 — log it and return the
+            // same generic response (also avoids email enumeration).
             Log::warning('Password reset email failed to send', [
                 'email' => $email,
                 'error' => $e->getMessage(),
