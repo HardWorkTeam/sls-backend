@@ -30,15 +30,24 @@ class InvitationRepository extends EloquentRepository
 
     public function findPublishedByCode(string $code): ?Invitation
     {
-        return $this->query()
+        return $this->findByCode($code, publishedOnly: true);
+    }
+
+    public function findByCode(string $code, bool $publishedOnly = false): ?Invitation
+    {
+        $query = $this->query()
             ->where('invitation_code', $code)
-            ->where('status', InvitationStatus::Published->value)
             ->with([
                 'template',
-                'wedding.timelineEvents' => fn ($query) => $query->where('is_public', true)->orderBy('starts_at'),
-                'wedding.albums' => fn ($query) => $query->where('is_public', true),
-            ])
-            ->first();
+                'wedding.timelineEvents' => fn ($q) => $q->where('is_public', true)->orderBy('starts_at'),
+                'wedding.albums' => fn ($q) => $q->where('is_public', true),
+            ]);
+
+        if ($publishedOnly) {
+            $query->where('status', InvitationStatus::Published->value);
+        }
+
+        return $query->first();
     }
 
     public function generateUniqueCode(int $length = 8): string

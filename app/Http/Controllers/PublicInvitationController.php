@@ -17,7 +17,7 @@ class PublicInvitationController extends Controller
 
     public function show(string $code): PublicInvitationResource
     {
-        $invitation = $this->invitationService->findPublishedByCode($code);
+        $invitation = $this->invitationService->findByCode($code);
 
         abort_unless((bool) $invitation, 404, 'Invitation not found.');
 

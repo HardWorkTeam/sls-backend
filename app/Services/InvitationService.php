@@ -88,4 +88,9 @@ class InvitationService
     {
         return $this->invitations->findPublishedByCode($code);
     }
+
+    public function findByCode(string $code): ?Invitation
+    {
+        return $this->invitations->findByCode($code);
+    }
 }
