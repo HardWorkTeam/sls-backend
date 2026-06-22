@@ -40,24 +40,34 @@ class CatalogSeeder extends Seeder
 
         $templates = [
             [
-                'slug' => 'classic-rose',
-                'name' => 'Classic Rose',
-                'config' => ['primary_color' => '#b76e79', 'font' => 'Playfair Display', 'layout' => 'classic'],
+                'slug' => 'royal-khmer-v1',
+                'name' => 'Royal Khmer',
+                'config' => ['primary_color' => '#C9A84C', 'font' => 'Moul', 'layout' => 'traditional'],
             ],
             [
-                'slug' => 'golden-khmer',
-                'name' => 'Golden Khmer',
-                'config' => ['primary_color' => '#c9a227', 'font' => 'Moul', 'layout' => 'traditional'],
+                'slug' => 'angkor-heritage-v1',
+                'name' => 'Angkor Heritage',
+                'config' => ['primary_color' => '#D4A020', 'font' => 'Moul', 'layout' => 'heritage'],
             ],
             [
-                'slug' => 'minimal-ivory',
-                'name' => 'Minimal Ivory',
-                'config' => ['primary_color' => '#f5f0e8', 'font' => 'Inter', 'layout' => 'minimal'],
+                'slug' => 'blue-botanical-v1',
+                'name' => 'Blue Botanical',
+                'config' => ['primary_color' => '#6A8CB2', 'font' => 'Cormorant Garamond', 'layout' => 'botanical'],
             ],
             [
-                'slug' => 'emerald-garden',
-                'name' => 'Emerald Garden',
-                'config' => ['primary_color' => '#027a48', 'font' => 'Cormorant', 'layout' => 'botanical'],
+                'slug' => 'phanaroth-luxury-v1',
+                'name' => 'Phanaroth Luxury',
+                'config' => ['primary_color' => '#E8C97A', 'font' => 'Playfair Display', 'layout' => 'luxury'],
+            ],
+            [
+                'slug' => 'butterfly-editorial-v1',
+                'name' => 'Butterfly Editorial',
+                'config' => ['primary_color' => '#C5A059', 'font' => 'Cinzel', 'layout' => 'editorial'],
+            ],
+            [
+                'slug' => 'emerald-elegance-v1',
+                'name' => 'Emerald Elegance',
+                'config' => ['primary_color' => '#C9A84C', 'font' => 'Cormorant Garamond', 'layout' => 'emerald'],
             ],
         ];
 

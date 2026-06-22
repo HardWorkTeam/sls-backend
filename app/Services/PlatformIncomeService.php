@@ -2,31 +2,35 @@
 
 namespace App\Services;
 
-use App\Models\Wedding;
+use App\Enums\SubscriptionStatus;
+use App\Models\Subscription;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Platform revenue is derived from weddings that have been assigned a package
- * (each such wedding is a package purchase). This service owns those queries so
- * the controller stays thin, matching the rest of the codebase.
+ * Platform revenue = subscriptions that have been PAID (admin-confirmed). Each
+ * paid subscription is real, received income. This service owns those queries
+ * so the controller stays thin, matching the rest of the codebase.
  */
 class PlatformIncomeService
 {
     /**
-     * Per-event income rows in the standard {data, links, meta} envelope.
+     * Per-payment income rows in the standard {data, links, meta} envelope.
      *
      * @return array<string, mixed>
      */
     public function rows(?string $status, int $perPage): array
     {
         $paginator = $this->baseQuery()
-            ->when($status, fn (Builder $query) => $query->where('status', $status))
-            ->latest('weddings.created_at')
+            ->when($status, fn (Builder $query) => $query->whereHas(
+                'wedding',
+                fn (Builder $wedding) => $wedding->where('status', $status),
+            ))
+            ->latest('paid_at')
             ->paginate($perPage);
 
         return [
             'data' => $paginator->getCollection()
-                ->map(fn (Wedding $wedding) => $this->toRow($wedding))
+                ->map(fn (Subscription $subscription) => $this->toRow($subscription))
                 ->all(),
             'links' => [
                 'first' => $paginator->url(1),
@@ -46,26 +50,26 @@ class PlatformIncomeService
     }
 
     /**
-     * Total platform income + per-package breakdown.
+     * Total platform income (paid only) + per-package breakdown.
      *
      * @return array<string, mixed>
      */
     public function summary(): array
     {
-        $weddings = $this->baseQuery()->get();
+        $subscriptions = $this->baseQuery()->get();
 
         $byPackage = [];
         $total = 0.0;
 
-        foreach ($weddings as $wedding) {
-            $amount = (float) ($wedding->package->price ?? 0);
+        foreach ($subscriptions as $subscription) {
+            $amount = (float) $subscription->amount;
             $total += $amount;
 
-            $key = $wedding->package_id;
+            $key = $subscription->package_id;
             if (! isset($byPackage[$key])) {
                 $byPackage[$key] = [
-                    'package_id' => $wedding->package_id,
-                    'package_name' => $wedding->package->name ?? 'Unknown',
+                    'package_id' => $subscription->package_id,
+                    'package_name' => $subscription->package->name ?? 'Unknown',
                     'count' => 0,
                     'amount' => 0.0,
                 ];
@@ -76,38 +80,40 @@ class PlatformIncomeService
 
         return [
             'total_income' => round($total, 2),
-            'total_subscriptions' => $weddings->count(),
-            'currency' => $weddings->first()?->package?->currency ?? 'USD',
+            'total_subscriptions' => $subscriptions->count(),
+            'currency' => $subscriptions->first()?->currency ?? 'USD',
             'by_package' => array_values($byPackage),
         ];
     }
 
     /**
-     * Only weddings that have a package count as platform revenue.
+     * Only PAID subscriptions count as platform revenue.
      */
     private function baseQuery(): Builder
     {
-        return Wedding::query()
-            ->whereNotNull('package_id')
-            ->with(['package', 'createdBy']);
+        return Subscription::query()
+            ->where('status', SubscriptionStatus::Paid->value)
+            ->with(['package', 'wedding.createdBy']);
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function toRow(Wedding $wedding): array
+    private function toRow(Subscription $subscription): array
     {
+        $wedding = $subscription->wedding;
+
         return [
-            'event_id' => $wedding->id,
-            'wedding_code' => $wedding->wedding_code,
-            'event_name' => $wedding->wedding_name,
-            'event_status' => $wedding->status,
-            'user_id' => $wedding->created_by_user_id,
-            'user_name' => $wedding->createdBy?->name,
-            'package_name' => $wedding->package?->name,
-            'amount' => (float) ($wedding->package?->price ?? 0),
-            'currency' => $wedding->package?->currency ?? 'USD',
-            'purchased_at' => $wedding->created_at?->toIso8601String(),
+            'event_id' => $wedding?->id,
+            'wedding_code' => $wedding?->wedding_code,
+            'event_name' => $wedding?->wedding_name,
+            'event_status' => $wedding?->status,
+            'user_id' => $wedding?->created_by_user_id,
+            'user_name' => $wedding?->createdBy?->name,
+            'package_name' => $subscription->package?->name,
+            'amount' => (float) $subscription->amount,
+            'currency' => $subscription->currency,
+            'purchased_at' => $subscription->paid_at?->toIso8601String(),
         ];
     }
 }

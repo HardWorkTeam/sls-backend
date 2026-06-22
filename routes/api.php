@@ -1,7 +1,6 @@
 <?php
 
 use App\Http\Controllers\Admin\IncomeController;
-use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuthController;
@@ -17,7 +16,6 @@ use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PublicInvitationController;
 use App\Http\Controllers\RsvpController;
 use App\Http\Controllers\SeatingController;
-use App\Http\Controllers\SubscriptionController;
 use App\Http\Controllers\TimelineEventController;
 use App\Http\Controllers\WeddingController;
 use App\Http\Controllers\WeddingMemberController;
@@ -66,16 +64,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Catalog: browsable by all authenticated users, managed by super admins.
     Route::get('/packages', [PackageController::class, 'index']);
-    Route::get('/templates', [InvitationTemplateController::class, 'index']);
+    Route::get('/invitation-templates', [InvitationTemplateController::class, 'index']);
 
     Route::middleware('role:super_admin')->group(function () {
         Route::post('/packages', [PackageController::class, 'store']);
         Route::put('/packages/{package}', [PackageController::class, 'update']);
         Route::delete('/packages/{package}', [PackageController::class, 'destroy']);
-
-        Route::post('/templates', [InvitationTemplateController::class, 'store']);
-        Route::put('/templates/{template}', [InvitationTemplateController::class, 'update']);
-        Route::delete('/templates/{template}', [InvitationTemplateController::class, 'destroy']);
 
         Route::prefix('admin')->group(function () {
             Route::get('/roles', [UserController::class, 'roles']);
@@ -83,9 +77,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
             Route::get('/income', [IncomeController::class, 'index']);
             Route::get('/income/summary', [IncomeController::class, 'summary']);
-
-            Route::get('/subscriptions', [AdminSubscriptionController::class, 'index']);
-            Route::post('/subscriptions/{subscription}/confirm', [AdminSubscriptionController::class, 'confirm']);
         });
     });
 
@@ -103,10 +94,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/status', [WeddingController::class, 'changeStatus'])
             ->middleware('role:super_admin,organizer,couple');
         Route::get('/dashboard', [WeddingController::class, 'dashboard']);
-
-        Route::get('/subscription', [SubscriptionController::class, 'show']);
-        Route::post('/subscription', [SubscriptionController::class, 'select']);
-        Route::post('/subscription/pay', [SubscriptionController::class, 'pay']);
 
         Route::get('/members', [WeddingMemberController::class, 'index']);
         Route::post('/members', [WeddingMemberController::class, 'store'])
