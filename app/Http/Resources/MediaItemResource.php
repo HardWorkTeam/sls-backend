@@ -11,16 +11,31 @@ class MediaItemResource extends JsonResource
     /**
      * @return array<string, mixed>
      */
+    private function resolveUrl(string $path, string $resourceType = 'image'): string
+    {
+        $disk = config('filesystems.media_disk', 'public');
+
+        if ($disk === 'cloudinary') {
+            $cloudName = config('services.cloudinary.cloud_name');
+
+            return "https://res.cloudinary.com/{$cloudName}/{$resourceType}/upload/{$path}";
+        }
+
+        return Storage::disk($disk)->url($path);
+    }
+
     public function toArray(Request $request): array
     {
+        $resourceType = $this->media_type === 'video' ? 'video' : 'image';
+
         return [
             'id' => $this->id,
             'wedding_id' => $this->wedding_id,
             'album_id' => $this->album_id,
             'media_type' => $this->media_type,
-            'url' => Storage::disk('public')->url($this->storage_path),
+            'url' => $this->resolveUrl($this->storage_path, $resourceType),
             'thumbnail_url' => $this->thumbnail_path
-                ? Storage::disk('public')->url($this->thumbnail_path)
+                ? $this->resolveUrl($this->thumbnail_path)
                 : null,
             'original_name' => $this->original_name,
             'mime_type' => $this->mime_type,

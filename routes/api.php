@@ -5,8 +5,8 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\GalleryController;
 use App\Http\Controllers\GiftController;
 use App\Http\Controllers\GuestController;
 use App\Http\Controllers\GuestGroupController;
@@ -161,6 +161,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/albums/{album}', [GalleryController::class, 'destroyAlbum']);
         Route::get('/media', [GalleryController::class, 'media']);
         Route::post('/media', [GalleryController::class, 'upload']);
+        Route::patch('/media/{mediaItem}', [GalleryController::class, 'updateMedia']);
         Route::delete('/media/{mediaItem}', [GalleryController::class, 'destroyMedia']);
 
         Route::get('/announcements', [AnnouncementController::class, 'index']);

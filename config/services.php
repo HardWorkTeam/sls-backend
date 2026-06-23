@@ -35,6 +35,12 @@ return [
         ],
     ],
 
+    'cloudinary' => [
+        'cloud_name' => env('CLOUDINARY_CLOUD_NAME'),
+        'api_key' => env('CLOUDINARY_API_KEY'),
+        'api_secret' => env('CLOUDINARY_API_SECRET'),
+    ],
+
     'rsvp' => [
         // Public RSVP website base URL, used for invitation links + QR codes.
         'url' => env('RSVP_APP_URL', 'http://localhost:3002'),

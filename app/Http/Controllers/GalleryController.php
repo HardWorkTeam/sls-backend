@@ -72,6 +72,15 @@ class GalleryController extends Controller
         return MediaItemResource::make($mediaItem)->response()->setStatusCode(201);
     }
 
+    public function updateMedia(Request $request, Wedding $wedding, MediaItem $mediaItem): MediaItemResource
+    {
+        abort_unless($mediaItem->wedding_id === $wedding->id, 404);
+
+        return MediaItemResource::make(
+            $this->galleryService->updateMedia($mediaItem, $request->boolean('is_public')),
+        );
+    }
+
     public function destroyMedia(Wedding $wedding, MediaItem $mediaItem): JsonResponse
     {
         abort_unless($mediaItem->wedding_id === $wedding->id, 404);

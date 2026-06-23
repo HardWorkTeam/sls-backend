@@ -11,6 +11,7 @@ use App\Repositories\GalleryRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class GalleryService
@@ -58,10 +59,81 @@ class GalleryService
         return $this->gallery->mediaForWedding($wedding, $albumId, $mediaType, $perPage);
     }
 
+    private function mediaDisk(): string
+    {
+        return config('filesystems.media_disk', 'public');
+    }
+
+    private function isCloudinary(): bool
+    {
+        return $this->mediaDisk() === 'cloudinary';
+    }
+
+    private function cloudinarySign(array $params): string
+    {
+        ksort($params);
+        $str = implode('&', array_map(
+            fn ($k, $v) => "{$k}={$v}",
+            array_keys($params),
+            array_values($params),
+        )).config('services.cloudinary.api_secret');
+
+        return hash('sha256', $str);
+    }
+
+    private function cloudinaryUpload(UploadedFile $file, string $folder, string $resourceType): string
+    {
+        $cloudName = config('services.cloudinary.cloud_name');
+        $apiKey = config('services.cloudinary.api_key');
+        $timestamp = time();
+        $signParams = ['folder' => $folder, 'timestamp' => $timestamp];
+
+        $response = Http::attach('file', fopen($file->getRealPath(), 'rb'), $file->getClientOriginalName())
+            ->post("https://api.cloudinary.com/v1_1/{$cloudName}/{$resourceType}/upload", [
+                'api_key' => $apiKey,
+                'timestamp' => $timestamp,
+                'folder' => $folder,
+                'signature' => $this->cloudinarySign($signParams),
+            ]);
+
+        $response->throw();
+
+        return $response->json('public_id');
+    }
+
+    private function cloudinaryDestroy(string $publicId, string $resourceType = 'image'): void
+    {
+        $cloudName = config('services.cloudinary.cloud_name');
+        $apiKey = config('services.cloudinary.api_key');
+        $timestamp = time();
+        $signParams = ['public_id' => $publicId, 'timestamp' => $timestamp];
+
+        Http::post("https://api.cloudinary.com/v1_1/{$cloudName}/{$resourceType}/destroy", [
+            'api_key' => $apiKey,
+            'public_id' => $publicId,
+            'timestamp' => $timestamp,
+            'signature' => $this->cloudinarySign($signParams),
+        ])->throw();
+    }
+
     public function upload(Wedding $wedding, User $user, UploadedFile $file, ?int $albumId, bool $isPublic): MediaItem
     {
         $isVideo = str_starts_with((string) $file->getMimeType(), 'video/');
-        $path = $file->store("weddings/{$wedding->id}/gallery", 'public');
+
+        if ($this->isCloudinary()) {
+            $path = $this->cloudinaryUpload($file, "weddings/{$wedding->id}/gallery", $isVideo ? 'video' : 'image');
+        } else {
+            $path = Storage::disk($this->mediaDisk())->putFile(
+                "weddings/{$wedding->id}/gallery",
+                $file,
+                'public',
+            );
+        }
+
+        // Inherit is_public from the album when the caller hasn't explicitly set it.
+        if (! $isPublic && $albumId) {
+            $isPublic = (bool) Album::find($albumId)?->is_public;
+        }
 
         return MediaItem::create([
             'wedding_id' => $wedding->id,
@@ -76,12 +148,27 @@ class GalleryService
         ])->load('album');
     }
 
+    public function updateMedia(MediaItem $mediaItem, bool $isPublic): MediaItem
+    {
+        $mediaItem->update(['is_public' => $isPublic]);
+
+        return $mediaItem->fresh(['album']);
+    }
+
     public function deleteMedia(MediaItem $mediaItem): void
     {
-        Storage::disk('public')->delete(array_filter([
-            $mediaItem->storage_path,
-            $mediaItem->thumbnail_path,
-        ]));
+        if ($this->isCloudinary()) {
+            $resourceType = $mediaItem->media_type === 'video' ? 'video' : 'image';
+            $this->cloudinaryDestroy($mediaItem->storage_path, $resourceType);
+            if ($mediaItem->thumbnail_path) {
+                $this->cloudinaryDestroy($mediaItem->thumbnail_path);
+            }
+        } else {
+            $paths = array_filter([$mediaItem->storage_path, $mediaItem->thumbnail_path]);
+            if ($paths) {
+                Storage::disk($this->mediaDisk())->delete($paths);
+            }
+        }
 
         $mediaItem->forceDelete();
     }

@@ -37,9 +37,7 @@ class PublicInvitationResource extends JsonResource
                 'google_map_link' => $wedding->google_map_link,
                 'story_description' => $wedding->story_description,
                 'timeline_events' => TimelineEventResource::collection($wedding->timelineEvents),
-                'albums' => AlbumResource::collection($wedding->albums->loadMissing([
-                    'mediaItems' => fn ($query) => $query->where('is_public', true),
-                ])),
+                'albums' => AlbumResource::collection($wedding->albums->loadMissing('mediaItems')),
             ],
         ];
     }
