@@ -33,6 +33,10 @@ class WeddingResource extends JsonResource
             'completed_at' => $this->completed_at?->toIso8601String(),
             'cancelled_at' => $this->cancelled_at?->toIso8601String(),
             'package' => PackageResource::make($this->whenLoaded('package')),
+            'payment_status' => $this->whenLoaded(
+                'subscriptions',
+                fn () => $this->subscriptions->sortByDesc('id')->first()?->status?->value ?? 'unpaid',
+            ),
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
             'members' => WeddingMemberResource::collection($this->whenLoaded('members')),
             'guests_count' => $this->whenCounted('guests'),

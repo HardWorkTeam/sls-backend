@@ -14,4 +14,9 @@ class DashboardController extends Controller
     {
         return response()->json(['data' => $this->dashboardService->overview($request->user())]);
     }
+
+    public function platformAnalytics(): JsonResponse
+    {
+        return response()->json(['data' => $this->dashboardService->platformAnalytics()]);
+    }
 }

@@ -44,7 +44,7 @@ class WeddingRepository extends EloquentRepository
         int $perPage = 15,
     ): LengthAwarePaginator {
         return $this->visibleTo($user)
-            ->with(['package', 'createdBy'])
+            ->with(['package', 'createdBy', 'subscriptions'])
             ->withCount(['guests', 'invitations'])
             ->when($status, fn (Builder $query) => $query->where('status', $status))
             ->when($search, function (Builder $query) use ($search) {

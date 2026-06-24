@@ -39,7 +39,7 @@ class WeddingController extends Controller
     public function show(Wedding $wedding): WeddingResource
     {
         return WeddingResource::make(
-            $wedding->load(['package', 'createdBy', 'members.user'])->loadCount(['guests', 'invitations']),
+            $wedding->load(['package', 'createdBy', 'members.user', 'subscriptions'])->loadCount(['guests', 'invitations']),
         );
     }
 

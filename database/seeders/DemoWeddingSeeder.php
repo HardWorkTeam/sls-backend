@@ -9,11 +9,13 @@ use App\Enums\InvitationStatus;
 use App\Enums\MemberRole;
 use App\Enums\RoleKey;
 use App\Enums\RsvpStatus;
+use App\Enums\SubscriptionStatus;
 use App\Enums\TimelineCategory;
 use App\Enums\WeddingStatus;
 use App\Models\InvitationTemplate;
 use App\Models\Package;
 use App\Models\Role;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Models\Wedding;
 use Illuminate\Database\Seeder;
@@ -60,7 +62,7 @@ class DemoWeddingSeeder extends Seeder
         $invitation = $wedding->invitations()->updateOrCreate(
             ['invitation_code' => 'DEMO2026'],
             [
-                'invitation_template_id' => InvitationTemplate::query()->where('slug', 'golden-khmer')->value('id'),
+                'invitation_template_id' => InvitationTemplate::query()->where('slug', 'royal-khmer-v1')->value('id'),
                 'title' => 'You are invited to our wedding',
                 'status' => InvitationStatus::Published->value,
                 'published_at' => now()->subDays(18),
@@ -198,6 +200,115 @@ class DemoWeddingSeeder extends Seeder
                 'created_by_user_id' => $organizer->id,
             ],
         );
+
+        // Demo wedding has SUBMITTED payment awaiting admin confirmation — gives
+        // the admin /payments Confirm flow and the couple "awaiting" state something
+        // real to show.
+        Subscription::query()->updateOrCreate(
+            ['wedding_id' => $wedding->id],
+            [
+                'package_id' => $wedding->package_id,
+                'amount' => Package::query()->whereKey($wedding->package_id)->value('price'),
+                'currency' => 'USD',
+                'status' => SubscriptionStatus::Submitted->value,
+                'payment_method' => 'aba',
+                'payment_reference' => 'DEMO-TXN-0001',
+                'submitted_at' => now()->subDays(2),
+                'paid_at' => null,
+            ],
+        );
+
+        $this->seedPlatformData($organizer);
+    }
+
+    /**
+     * Generate a spread of registered users, weddings, invitations and paid
+     * subscriptions over the last 30 days so the super-admin Platform Analytics
+     * dashboard (revenue trend, system growth, package sales, template usage)
+     * renders against realistic data.
+     */
+    private function seedPlatformData(User $organizer): void
+    {
+        // Weight package selection so sales rank Signature > Premium > Essential
+        // (matching the analytics mockup); revenue follows from package price.
+        $packages = Package::query()->pluck('id', 'name');
+        $packagePlan = array_merge(
+            array_fill(0, 16, 'Signature'),
+            array_fill(0, 10, 'Premium'),
+            array_fill(0, 6, 'Essential'),
+        );
+
+        $templateIds = InvitationTemplate::query()->pluck('id')->all();
+
+        // Extra registered users spread across the last 30 days (system growth).
+        for ($i = 1; $i <= 40; $i++) {
+            $user = User::query()->updateOrCreate(
+                ['email' => "guest-user-{$i}@srolanh.com"],
+                ['name' => "Demo User {$i}", 'password' => 'password', 'is_active' => true],
+            );
+            $user->forceFill(['created_at' => now()->subDays(rand(0, 29))->setTime(rand(8, 20), rand(0, 59))])->save();
+        }
+
+        foreach ($packagePlan as $index => $packageName) {
+            $n = $index + 1;
+            $packageId = $packages[$packageName];
+            $price = Package::query()->whereKey($packageId)->value('price');
+            $paidAt = now()->subDays(rand(0, 29))->setTime(rand(8, 20), rand(0, 59));
+
+            $w = Wedding::query()->updateOrCreate(
+                ['wedding_code' => sprintf('WED-SEED%03d', $n)],
+                [
+                    'wedding_name' => "Demo Couple {$n}",
+                    'bride_name' => "Bride {$n}",
+                    'groom_name' => "Groom {$n}",
+                    'wedding_date' => now()->addDays(rand(10, 120))->toDateString(),
+                    'status' => WeddingStatus::Published->value,
+                    'published_at' => $paidAt,
+                    'package_id' => $packageId,
+                    'created_by_user_id' => $organizer->id,
+                ],
+            );
+
+            $w->invitations()->updateOrCreate(
+                ['invitation_code' => sprintf('SEED%03d', $n)],
+                [
+                    'invitation_template_id' => $templateIds[$index % count($templateIds)],
+                    'title' => 'You are invited',
+                    'status' => InvitationStatus::Published->value,
+                    'published_at' => $paidAt,
+                ],
+            );
+
+            // Vary status: most paid (revenue), a few submitted (awaiting admin),
+            // a few pending (package picked, not yet paid).
+            if ($n % 8 === 0) {
+                $status = SubscriptionStatus::Submitted->value;
+                $submittedAt = $paidAt;
+                $confirmedAt = null;
+            } elseif ($n % 8 === 1) {
+                $status = SubscriptionStatus::Pending->value;
+                $submittedAt = null;
+                $confirmedAt = null;
+            } else {
+                $status = SubscriptionStatus::Paid->value;
+                $submittedAt = $paidAt->copy()->subDay();
+                $confirmedAt = $paidAt;
+            }
+
+            Subscription::query()->updateOrCreate(
+                ['wedding_id' => $w->id],
+                [
+                    'package_id' => $packageId,
+                    'amount' => $price,
+                    'currency' => 'USD',
+                    'status' => $status,
+                    'payment_method' => $status === SubscriptionStatus::Pending->value ? null : 'khqr',
+                    'payment_reference' => $status === SubscriptionStatus::Pending->value ? null : sprintf('SEED-TXN-%04d', $n),
+                    'submitted_at' => $submittedAt,
+                    'paid_at' => $confirmedAt,
+                ],
+            );
+        }
     }
 
     private function user(string $name, string $email, RoleKey $roleKey): User

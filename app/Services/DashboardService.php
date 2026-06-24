@@ -3,16 +3,78 @@
 namespace App\Services;
 
 use App\Enums\RsvpStatus;
+use App\Enums\SubscriptionStatus;
 use App\Enums\WeddingStatus;
 use App\Models\Guest;
+use App\Models\Invitation;
+use App\Models\Package;
 use App\Models\RsvpResponse;
+use App\Models\Subscription;
 use App\Models\User;
 use App\Models\Wedding;
 use App\Repositories\WeddingRepository;
 
 class DashboardService
 {
-    public function __construct(private readonly WeddingRepository $weddings) {}
+    public function __construct(
+        private readonly WeddingRepository $weddings,
+        private readonly PlatformIncomeService $income,
+    ) {}
+
+    /**
+     * Super-admin platform analytics: business KPIs + chart datasets across the
+     * whole platform (not scoped to a single user's weddings).
+     *
+     * @return array<string, mixed>
+     */
+    public function platformAnalytics(): array
+    {
+        $summary = $this->income->summary();
+        $since = now()->subDays(30)->startOfDay();
+
+        $revenueTrend = Subscription::query()
+            ->where('status', SubscriptionStatus::Paid->value)
+            ->whereNotNull('paid_at')
+            ->where('paid_at', '>=', $since)
+            ->selectRaw('date(paid_at) as date, sum(amount) as total')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(fn ($row) => ['date' => (string) $row->date, 'total' => round((float) $row->total, 2)]);
+
+        $systemGrowth = User::query()
+            ->where('created_at', '>=', $since)
+            ->selectRaw('date(created_at) as date, count(*) as total')
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(fn ($row) => ['date' => (string) $row->date, 'total' => (int) $row->total]);
+
+        $templateUsage = Invitation::query()
+            ->leftJoin('invitation_templates', 'invitations.invitation_template_id', '=', 'invitation_templates.id')
+            ->whereNull('invitations.deleted_at')
+            ->selectRaw("coalesce(invitation_templates.name, 'No template') as name, count(*) as total")
+            ->groupBy('invitation_templates.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => ['name' => (string) $row->name, 'total' => (int) $row->total]);
+
+        return [
+            'cards' => [
+                'total_registered_users' => User::query()->count(),
+                'total_weddings_created' => Wedding::query()->count(),
+                'total_revenue' => $summary['total_income'],
+                'active_selling_packages' => Package::query()->where('is_active', true)->count(),
+            ],
+            'charts' => [
+                'revenue_trend' => $revenueTrend,
+                'system_growth' => $systemGrowth,
+                'package_sales' => $summary['by_package'],
+                'template_usage' => $templateUsage,
+            ],
+            'currency' => $summary['currency'],
+        ];
+    }
 
     /**
      * Global admin dashboard: cards + chart datasets, scoped to the
