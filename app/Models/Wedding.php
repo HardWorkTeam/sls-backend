@@ -116,8 +116,4 @@ class Wedding extends Model
         return $this->hasMany(Album::class);
     }
 
-    public function announcements(): HasMany
-    {
-        return $this->hasMany(Announcement::class);
-    }
 }

@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\AnnouncementChannel;
 use App\Enums\GiftType;
 use App\Enums\GuestGroupType;
 use App\Enums\InvitationStatus;
@@ -189,16 +188,6 @@ class DemoWeddingSeeder extends Seeder
         $wedding->albums()->updateOrCreate(
             ['name' => 'Pre-Wedding Shoot'],
             ['description' => 'Photos from the couple\'s pre-wedding session.', 'is_public' => true],
-        );
-
-        $wedding->announcements()->updateOrCreate(
-            ['title' => 'Save the date!'],
-            [
-                'body' => 'Dear friends and family, we are excited to celebrate with you. Please RSVP through your invitation link.',
-                'channel' => AnnouncementChannel::Email->value,
-                'status' => 'draft',
-                'created_by_user_id' => $organizer->id,
-            ],
         );
 
         // Demo wedding has SUBMITTED payment awaiting admin confirmation — gives

@@ -24,7 +24,6 @@ class RolePermissionSeeder extends Seeder
         'gifts.view', 'gifts.manage',
         'timeline.view', 'timeline.manage',
         'gallery.view', 'gallery.manage',
-        'announcements.view', 'announcements.manage',
         'reports.view',
     ];
 
@@ -39,7 +38,6 @@ class RolePermissionSeeder extends Seeder
             'gifts.view', 'gifts.manage',
             'timeline.view', 'timeline.manage',
             'gallery.view', 'gallery.manage',
-            'announcements.view', 'announcements.manage',
             'reports.view',
         ],
         RoleKey::Couple->value => [
@@ -51,7 +49,6 @@ class RolePermissionSeeder extends Seeder
             'gifts.view', 'gifts.manage',
             'timeline.view',
             'gallery.view', 'gallery.manage',
-            'announcements.view',
         ],
     ];
 

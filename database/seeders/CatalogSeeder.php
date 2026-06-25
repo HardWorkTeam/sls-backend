@@ -27,10 +27,10 @@ class CatalogSeeder extends Seeder
             ],
             [
                 'name' => 'Signature',
-                'description' => 'Full-service digital wedding suite with announcements and premium templates.',
+                'description' => 'Full-service digital wedding suite with premium templates.',
                 'price' => 499,
                 'currency' => 'USD',
-                'features' => ['Unlimited designs', 'Unlimited guests', 'All modules', 'Email + SMS announcements', 'Priority support'],
+                'features' => ['Unlimited designs', 'Unlimited guests', 'All modules', 'Priority support'],
             ],
         ];
 

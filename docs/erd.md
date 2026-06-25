@@ -31,11 +31,6 @@ erDiagram
   ALBUMS ||--o{ MEDIA_ITEMS : contains
   USERS ||--o{ MEDIA_ITEMS : uploads
 
-  WEDDINGS ||--o{ ANNOUNCEMENTS : has
-  ANNOUNCEMENTS ||--o{ NOTIFICATION_LOGS : logs
-  USERS ||--o{ NOTIFICATION_LOGS : receives
-  GUESTS ||--o{ NOTIFICATION_LOGS : receives
-
   USERS ||--o{ ROLE_USER : has
   ROLES ||--o{ ROLE_USER : assigned
   ROLES ||--o{ PERMISSION_ROLE : has
@@ -78,8 +73,4 @@ erDiagram
 ### Gallery
 - `albums`
 - `media_items`
-
-### Announcements
-- `announcements`
-- `notification_logs`
 

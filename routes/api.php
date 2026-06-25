@@ -3,7 +3,6 @@
 use App\Http\Controllers\Admin\IncomeController;
 use App\Http\Controllers\Admin\SubscriptionController as AdminSubscriptionController;
 use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
@@ -177,11 +176,5 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/media', [GalleryController::class, 'upload']);
         Route::patch('/media/{mediaItem}', [GalleryController::class, 'updateMedia']);
         Route::delete('/media/{mediaItem}', [GalleryController::class, 'destroyMedia']);
-
-        Route::get('/announcements', [AnnouncementController::class, 'index']);
-        Route::post('/announcements', [AnnouncementController::class, 'store']);
-        Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
-        Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
-        Route::post('/announcements/{announcement}/send', [AnnouncementController::class, 'send']);
     });
 });
