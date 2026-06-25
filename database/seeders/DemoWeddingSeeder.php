@@ -251,13 +251,22 @@ class DemoWeddingSeeder extends Seeder
         );
 
         $templateIds = InvitationTemplate::query()->pluck('id')->all();
+        $coupleRoleId = Role::query()->where('key', RoleKey::Couple->value)->value('id');
 
-        // Extra registered users spread across the last 30 days (system growth).
+        // Drop the old "guest-user" demo accounts — registered users are couples,
+        // and guests are display-only records that never have an account.
+        User::query()->where('email', 'like', 'guest-user-%@srolanh.com')->each(function (User $stale) {
+            $stale->roles()->detach();
+            $stale->delete();
+        });
+
+        // Extra registered couples spread across the last 30 days (system growth).
         for ($i = 1; $i <= 40; $i++) {
             $user = User::query()->updateOrCreate(
-                ['email' => "guest-user-{$i}@srolanh.com"],
-                ['name' => "Demo User {$i}", 'password' => 'password', 'is_active' => true],
+                ['email' => "couple-user-{$i}@srolanh.com"],
+                ['name' => "Couple User {$i}", 'password' => 'password', 'is_active' => true],
             );
+            $user->roles()->syncWithoutDetaching([$coupleRoleId]);
             $user->forceFill(['created_at' => now()->subDays(rand(0, 29))->setTime(rand(8, 20), rand(0, 59))])->save();
         }
 
