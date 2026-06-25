@@ -28,9 +28,9 @@ class PlanCapabilities
 
     /**
      * Allowance for a wedding that has not selected any package yet. The
-     * platform is not free — without a package nothing is unlocked (no gated
-     * modules, zero guests, zero designs), so the couple must choose a plan
-     * to start.
+     * platform is not free, so nothing is unlocked: no gated modules, zero
+     * guests, zero invitation designs. The couple can still preview the
+     * invitation templates (a public catalog) before choosing a plan.
      */
     public static function base(): self
     {

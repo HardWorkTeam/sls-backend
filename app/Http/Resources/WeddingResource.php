@@ -40,8 +40,11 @@ class WeddingResource extends JsonResource
             ),
             // What this wedding can do — follows the SELECTED package
             // (`package` relation, eager-loaded on index + show, no N+1).
-            'capabilities' => $this->whenLoaded(
-                'package',
+            // Use `when(relationLoaded)` rather than `whenLoaded('package')`:
+            // the latter returns null when the package is null, but a
+            // package-less wedding must still expose its (locked) base caps.
+            'capabilities' => $this->when(
+                $this->resource->relationLoaded('package'),
                 fn () => PlanCapabilities::forWedding($this->resource)->toArray(),
             ),
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
