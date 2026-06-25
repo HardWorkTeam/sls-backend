@@ -1,9 +1,12 @@
 <?php
 
-// Local dev origins are always allowed. Production origins come from the
-// CORS_ALLOWED_ORIGINS env var (comma-separated list of full URLs), so the
-// deployed admin/client/RSVP apps can reach the API without code changes.
-$localOrigins = [
+// Local dev origins are allowed ONLY outside production. Production origins come
+// from the CORS_ALLOWED_ORIGINS env var (comma-separated list of full URLs), so
+// the deployed admin/client/RSVP apps can reach the API without code changes.
+// In production we never fall back to localhost and never use a wildcard origin.
+$isProduction = env('APP_ENV') === 'production';
+
+$localOrigins = $isProduction ? [] : [
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:3002',
@@ -20,8 +23,10 @@ $envOrigins = array_filter(array_map(
 return [
     'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => ['*'],
+    // Explicit method list — no wildcard.
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
+    // Explicit origin allow-list (env-driven in production). Never '*'.
     'allowed_origins' => array_values(array_unique([...$localOrigins, ...$envOrigins])),
 
     // Optional regex patterns, e.g. allow all Vercel preview deploys:
@@ -31,7 +36,16 @@ return [
         explode(',', (string) env('CORS_ALLOWED_ORIGIN_PATTERNS', '')),
     )),
 
-    'allowed_headers' => ['*'],
+    // Explicit header list — covers what the SPA clients send (Sanctum token,
+    // JSON, XSRF). No wildcard.
+    'allowed_headers' => [
+        'Accept',
+        'Authorization',
+        'Content-Type',
+        'Origin',
+        'X-Requested-With',
+        'X-XSRF-TOKEN',
+    ],
 
     'exposed_headers' => [],
 
