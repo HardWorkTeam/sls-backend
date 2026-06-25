@@ -37,7 +37,7 @@ class DemoWeddingSeeder extends Seeder
                 'phone' => '+855 12 345 678',
                 'email' => 'sophea.visal@example.com',
                 'wedding_date' => now()->addDays(45)->toDateString(),
-                'wedding_time' => '16:30',
+                'wedding_time' => '17:30',
                 'ceremony_venue' => 'Wat Botum Park Hall, Phnom Penh',
                 'reception_venue' => 'Sokha Hotel Grand Ballroom',
                 'google_map_link' => 'https://maps.google.com/?q=Sokha+Hotel+Phnom+Penh',
@@ -66,8 +66,31 @@ class DemoWeddingSeeder extends Seeder
                 'status' => InvitationStatus::Published->value,
                 'published_at' => now()->subDays(18),
                 'settings' => [
-                    'show_gift_section' => true,
-                    'bank_account' => ['bank' => 'ABA Bank', 'name' => 'Sophea Chan', 'number' => '000 123 456'],
+                    'sections' => [
+                        'Cover' => true, 'CoupleInfo' => true, 'LoveStory' => true, 'Schedule' => true,
+                        'Gallery' => true, 'Location' => true, 'GiftRegistry' => true, 'RSVP' => true,
+                    ],
+                    'invitation_text_kh' => 'មានកិត្តិយសសូមគោរពអញ្ជើញ ចូលរួមជាភ្ញៀវកិត្តិយស',
+                    'invitation_text_en' => 'CORDIALLY REQUEST THE HONOR OF YOUR PRESENCE',
+                    'gallery_urls' => [],
+                    'bank_account' => [
+                        'bank' => 'ABA Bank',
+                        'name' => 'Sophea Chan',
+                        'number' => '000 123 456',
+                        'qr_url' => '',
+                    ],
+                    'couple_extended' => [
+                        'groom' => [
+                            'nameKh' => 'វិសាល គីម', 'nameEn' => 'Visal Kim', 'photo' => '',
+                            'father' => 'គីម សុវណ្ណ', 'fatherEn' => 'Kim Sovann',
+                            'mother' => 'សុខ ច័ន្ទថា', 'motherEn' => 'Sok Chantha',
+                        ],
+                        'bride' => [
+                            'nameKh' => 'សុភា ចាន់', 'nameEn' => 'Sophea Chan', 'photo' => '',
+                            'father' => 'ចាន់ ដារ៉ា', 'fatherEn' => 'Chan Dara',
+                            'mother' => 'លឹម ស្រីមុំ', 'motherEn' => 'Lim Sreymom',
+                        ],
+                    ],
                 ],
             ],
         );
