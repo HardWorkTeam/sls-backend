@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Guest;
 use App\Models\Wedding;
 use App\Repositories\GuestRepository;
+use App\Support\PlanCapabilities;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -30,12 +31,35 @@ class GuestService
      */
     public function create(Wedding $wedding, array $attributes): Guest
     {
+        $this->assertGuestCapacity($wedding);
+
         $attributes['wedding_id'] = $wedding->id;
 
         /** @var Guest $guest */
         $guest = $this->guests->create($attributes);
 
         return $guest->load(['group', 'invitation', 'seating.table']);
+    }
+
+    /**
+     * Guard the wedding's plan guest cap before adding $adding more guests.
+     * Unlimited plans (null limit) never block.
+     */
+    private function assertGuestCapacity(Wedding $wedding, int $adding = 1): void
+    {
+        $limit = PlanCapabilities::forWedding($wedding)->guestLimit;
+
+        if ($limit === null) {
+            return;
+        }
+
+        $current = $wedding->guests()->count();
+
+        abort_if(
+            $current + $adding > $limit,
+            422,
+            "Your plan allows up to {$limit} guests. Upgrade your plan to add more.",
+        );
     }
 
     /**
@@ -98,7 +122,12 @@ class GuestService
         $errors = [];
         $line = 1;
 
-        DB::transaction(function () use ($handle, $header, $wedding, $groups, &$imported, &$skipped, &$errors, &$line) {
+        // Plan guest cap: stop importing once the wedding hits its limit
+        // (null = unlimited). Rows beyond the cap are skipped, not created.
+        $limit = PlanCapabilities::forWedding($wedding)->guestLimit;
+        $remaining = $limit === null ? PHP_INT_MAX : max(0, $limit - $wedding->guests()->count());
+
+        DB::transaction(function () use ($handle, $header, $wedding, $groups, $limit, &$remaining, &$imported, &$skipped, &$errors, &$line) {
             while (($row = fgetcsv($handle)) !== false) {
                 $line++;
 
@@ -111,6 +140,13 @@ class GuestService
                 if (empty($data['name'])) {
                     $skipped++;
                     $errors[] = "Line {$line}: missing guest name.";
+
+                    continue;
+                }
+
+                if ($remaining <= 0) {
+                    $skipped++;
+                    $errors[] = "Line {$line}: plan limit of {$limit} guests reached.";
 
                     continue;
                 }
@@ -135,6 +171,7 @@ class GuestService
                 ]);
 
                 $imported++;
+                $remaining--;
             }
         });
 

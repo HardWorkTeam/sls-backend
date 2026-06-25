@@ -7,6 +7,7 @@ use App\Models\Invitation;
 use App\Models\MediaItem;
 use App\Models\Wedding;
 use App\Repositories\InvitationRepository;
+use App\Support\PlanCapabilities;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
@@ -34,6 +35,8 @@ class InvitationService
      */
     public function create(Wedding $wedding, array $attributes): Invitation
     {
+        $this->assertDesignCapacity($wedding, $attributes['invitation_template_id'] ?? null);
+
         $attributes['wedding_id'] = $wedding->id;
         $attributes['invitation_code'] = $this->invitations->generateUniqueCode();
         $attributes['status'] = InvitationStatus::Draft->value;
@@ -49,6 +52,14 @@ class InvitationService
      */
     public function update(Invitation $invitation, array $attributes): Invitation
     {
+        if (array_key_exists('invitation_template_id', $attributes)) {
+            $this->assertDesignCapacity(
+                $invitation->wedding,
+                $attributes['invitation_template_id'],
+                ignoreInvitationId: $invitation->id,
+            );
+        }
+
         $oldUrls = $this->extractImageUrls($invitation->cover_image_path, $invitation->settings);
 
         $this->invitations->update($invitation, $attributes);
@@ -115,6 +126,34 @@ class InvitationService
     public function findByCode(string $code): ?Invitation
     {
         return $this->invitations->findByCode($code);
+    }
+
+    /**
+     * Enforce the plan's invitation-design cap: a wedding may use at most N
+     * distinct templates across its invitations (null = unlimited). Reusing a
+     * template the wedding already uses never consumes a new slot.
+     */
+    private function assertDesignCapacity(Wedding $wedding, ?int $templateId, ?int $ignoreInvitationId = null): void
+    {
+        if ($templateId === null) {
+            return;
+        }
+
+        $limit = PlanCapabilities::forWedding($wedding)->invitationDesignLimit;
+
+        if ($limit === null) {
+            return;
+        }
+
+        $usedTemplateIds = $wedding->invitations()
+            ->whereNotNull('invitation_template_id')
+            ->when($ignoreInvitationId, fn ($query) => $query->where('id', '!=', $ignoreInvitationId))
+            ->distinct()
+            ->pluck('invitation_template_id');
+
+        if (! $usedTemplateIds->contains($templateId) && $usedTemplateIds->count() >= $limit) {
+            abort(422, "Your plan allows up to {$limit} invitation design(s). Upgrade your plan to use more.");
+        }
     }
 
     /**

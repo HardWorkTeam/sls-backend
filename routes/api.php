@@ -142,20 +142,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/rsvps/{rsvp}', [RsvpController::class, 'update']);
         Route::delete('/rsvps/{rsvp}', [RsvpController::class, 'destroy']);
 
-        Route::get('/tables', [SeatingController::class, 'tables']);
-        Route::post('/tables', [SeatingController::class, 'storeTable']);
-        Route::put('/tables/{table}', [SeatingController::class, 'updateTable']);
-        Route::delete('/tables/{table}', [SeatingController::class, 'destroyTable']);
-        Route::post('/seatings/assign', [SeatingController::class, 'assign']);
-        Route::post('/seatings/unassign', [SeatingController::class, 'unassign']);
-        Route::post('/seatings/auto', [SeatingController::class, 'autoSeat']);
-        Route::get('/seatings/report', [SeatingController::class, 'report']);
+        // Seating planner — gated to plans that include it (Premium+).
+        Route::middleware('plan.module:seating')->group(function () {
+            Route::get('/tables', [SeatingController::class, 'tables']);
+            Route::post('/tables', [SeatingController::class, 'storeTable']);
+            Route::put('/tables/{table}', [SeatingController::class, 'updateTable']);
+            Route::delete('/tables/{table}', [SeatingController::class, 'destroyTable']);
+            Route::post('/seatings/assign', [SeatingController::class, 'assign']);
+            Route::post('/seatings/unassign', [SeatingController::class, 'unassign']);
+            Route::post('/seatings/auto', [SeatingController::class, 'autoSeat']);
+            Route::get('/seatings/report', [SeatingController::class, 'report']);
+        });
 
-        Route::get('/gifts', [GiftController::class, 'index']);
-        Route::get('/gifts/summary', [GiftController::class, 'summary']);
-        Route::post('/gifts', [GiftController::class, 'store']);
-        Route::put('/gifts/{gift}', [GiftController::class, 'update']);
-        Route::delete('/gifts/{gift}', [GiftController::class, 'destroy']);
+        // Gift tracking — gated to plans that include it (Premium+).
+        Route::middleware('plan.module:gifts')->group(function () {
+            Route::get('/gifts', [GiftController::class, 'index']);
+            Route::get('/gifts/summary', [GiftController::class, 'summary']);
+            Route::post('/gifts', [GiftController::class, 'store']);
+            Route::put('/gifts/{gift}', [GiftController::class, 'update']);
+            Route::delete('/gifts/{gift}', [GiftController::class, 'destroy']);
+        });
 
         Route::get('/expenses', [ExpenseController::class, 'index']);
         Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
@@ -168,13 +174,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/timeline-events/{event}', [TimelineEventController::class, 'update']);
         Route::delete('/timeline-events/{event}', [TimelineEventController::class, 'destroy']);
 
-        Route::get('/albums', [GalleryController::class, 'albums']);
-        Route::post('/albums', [GalleryController::class, 'storeAlbum']);
-        Route::put('/albums/{album}', [GalleryController::class, 'updateAlbum']);
-        Route::delete('/albums/{album}', [GalleryController::class, 'destroyAlbum']);
-        Route::get('/media', [GalleryController::class, 'media']);
-        Route::post('/media', [GalleryController::class, 'upload']);
-        Route::patch('/media/{mediaItem}', [GalleryController::class, 'updateMedia']);
-        Route::delete('/media/{mediaItem}', [GalleryController::class, 'destroyMedia']);
+        // Photo gallery — gated to plans that include it (Premium+).
+        Route::middleware('plan.module:gallery')->group(function () {
+            Route::get('/albums', [GalleryController::class, 'albums']);
+            Route::post('/albums', [GalleryController::class, 'storeAlbum']);
+            Route::put('/albums/{album}', [GalleryController::class, 'updateAlbum']);
+            Route::delete('/albums/{album}', [GalleryController::class, 'destroyAlbum']);
+            Route::get('/media', [GalleryController::class, 'media']);
+            Route::post('/media', [GalleryController::class, 'upload']);
+            Route::patch('/media/{mediaItem}', [GalleryController::class, 'updateMedia']);
+            Route::delete('/media/{mediaItem}', [GalleryController::class, 'destroyMedia']);
+        });
     });
 });

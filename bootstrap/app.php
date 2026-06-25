@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsurePlanModule;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\EnsureWeddingAccess;
 use Illuminate\Foundation\Application;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
             'wedding.access' => EnsureWeddingAccess::class,
+            'plan.module' => EnsurePlanModule::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

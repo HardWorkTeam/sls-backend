@@ -17,6 +17,11 @@ class CatalogSeeder extends Seeder
                 'price' => 99,
                 'currency' => 'USD',
                 'features' => ['1 invitation design', 'Up to 150 guests', 'RSVP dashboard', 'QR code'],
+                'capabilities' => [
+                    'modules' => ['seating' => false, 'gallery' => false, 'gifts' => false],
+                    'guest_limit' => 150,
+                    'invitation_design_limit' => 1,
+                ],
             ],
             [
                 'name' => 'Premium',
@@ -24,6 +29,11 @@ class CatalogSeeder extends Seeder
                 'price' => 249,
                 'currency' => 'USD',
                 'features' => ['3 invitation designs', 'Up to 500 guests', 'Seating planner', 'Gift tracking', 'Photo gallery'],
+                'capabilities' => [
+                    'modules' => ['seating' => true, 'gallery' => true, 'gifts' => true],
+                    'guest_limit' => 500,
+                    'invitation_design_limit' => 3,
+                ],
             ],
             [
                 'name' => 'Signature',
@@ -31,6 +41,11 @@ class CatalogSeeder extends Seeder
                 'price' => 499,
                 'currency' => 'USD',
                 'features' => ['Unlimited designs', 'Unlimited guests', 'All modules', 'Priority support'],
+                'capabilities' => [
+                    'modules' => ['seating' => true, 'gallery' => true, 'gifts' => true],
+                    'guest_limit' => null,
+                    'invitation_design_limit' => null,
+                ],
             ],
         ];
 
