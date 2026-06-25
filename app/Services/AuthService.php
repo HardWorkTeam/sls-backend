@@ -141,8 +141,16 @@ class AuthService
             return;
         }
 
-        if ($status !== Password::RESET_LINK_SENT && $status !== Password::INVALID_USER) {
-            // INVALID_USER intentionally returns success to avoid email enumeration.
+        if ($status === Password::INVALID_USER) {
+            // Surface a clear warning so the user knows no account exists yet.
+            // NOTE: this intentionally allows email enumeration in exchange for
+            // clearer UX (product decision).
+            throw ValidationException::withMessages([
+                'email' => ['No account exists for this email yet. Please sign up first.'],
+            ]);
+        }
+
+        if ($status !== Password::RESET_LINK_SENT) {
             throw ValidationException::withMessages(['email' => [__($status)]]);
         }
     }

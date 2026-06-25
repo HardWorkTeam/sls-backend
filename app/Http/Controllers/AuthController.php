@@ -103,7 +103,7 @@ class AuthController extends Controller
         $this->authService->sendPasswordResetLink($request->validated('email'));
 
         return response()->json([
-            'message' => 'If that email exists, a password reset link has been sent.',
+            'message' => 'A password reset link has been sent to your email.',
         ]);
     }
 
