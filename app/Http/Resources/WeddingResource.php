@@ -2,7 +2,6 @@
 
 namespace App\Http\Resources;
 
-use App\Enums\SubscriptionStatus;
 use App\Support\PlanCapabilities;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -39,20 +38,12 @@ class WeddingResource extends JsonResource
                 'subscriptions',
                 fn () => $this->subscriptions->sortByDesc('id')->first()?->status?->value ?? 'unpaid',
             ),
-            // What this wedding can actually do, gated on its PAID package.
-            // Computed from already-loaded relations to avoid extra queries.
-            'capabilities' => $this->whenLoaded('subscriptions', function () {
-                $paid = $this->subscriptions
-                    ->sortByDesc('id')
-                    ->firstWhere('status', SubscriptionStatus::Paid);
-
-                // When paid, weddings.package_id is locked to the paid package,
-                // so the eager-loaded `package` is the right source.
-                return PlanCapabilities::forPaidPackage(
-                    $paid && $this->relationLoaded('package') ? $this->package : null,
-                    $paid !== null,
-                )->toArray();
-            }),
+            // What this wedding can do — follows the SELECTED package
+            // (`package` relation, eager-loaded on index + show, no N+1).
+            'capabilities' => $this->whenLoaded(
+                'package',
+                fn () => PlanCapabilities::forWedding($this->resource)->toArray(),
+            ),
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
             'members' => WeddingMemberResource::collection($this->whenLoaded('members')),
             'guests_count' => $this->whenCounted('guests'),

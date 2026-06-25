@@ -2,27 +2,22 @@
 
 namespace App\Support;
 
-use App\Enums\SubscriptionStatus;
 use App\Models\Package;
 use App\Models\Wedding;
 
 /**
  * Resolves what a wedding is actually allowed to do, derived from the
- * marketing feature strings on the package it has *paid* for. This is the
- * single source of truth that turns a selected package into enforced
- * capabilities (gated modules + guest / invitation-design limits).
+ * package it has *selected*. This is the single source of truth that turns a
+ * selected package into enforced capabilities (gated modules + guest /
+ * invitation-design limits).
  *
- * Features unlock only once the subscription is PAID; before that (or with
- * no package) the wedding gets the conservative {@see base()} allowance.
+ * Capabilities follow the selected package immediately — payment is billing,
+ * not a feature gate. The platform is not free: a wedding with no package
+ * selected gets the locked {@see base()} allowance (nothing unlocked), so the
+ * couple must choose a package to start.
  */
 class PlanCapabilities
 {
-    /** Guests allowed for a wedding without a paid plan. */
-    private const BASE_GUEST_LIMIT = 25;
-
-    /** Invitation designs allowed for a wedding without a paid plan. */
-    private const BASE_DESIGN_LIMIT = 1;
-
     public function __construct(
         public readonly bool $seating,
         public readonly bool $gallery,
@@ -32,36 +27,27 @@ class PlanCapabilities
     ) {}
 
     /**
-     * Allowance for a wedding that has not paid for any package yet.
+     * Allowance for a wedding that has not selected any package yet. The
+     * platform is not free — without a package nothing is unlocked (no gated
+     * modules, zero guests, zero designs), so the couple must choose a plan
+     * to start.
      */
     public static function base(): self
     {
-        return new self(false, false, false, self::BASE_GUEST_LIMIT, self::BASE_DESIGN_LIMIT);
+        return new self(false, false, false, 0, 0);
     }
 
     /**
-     * Capabilities for a wedding, gated on its PAID subscription only.
+     * Capabilities for a wedding, following its SELECTED package
+     * (`weddings.package_id`). No package selected → base allowance.
      */
     public static function forWedding(Wedding $wedding): self
     {
-        $paid = $wedding->subscriptions()
-            ->where('status', SubscriptionStatus::Paid->value)
-            ->with('package')
-            ->latest('id')
-            ->first();
+        $package = $wedding->relationLoaded('package')
+            ? $wedding->package
+            : $wedding->loadMissing('package')->package;
 
-        return self::forPaidPackage($paid?->package, $paid !== null);
-    }
-
-    /**
-     * Build from the package the wedding has paid for. A non-paid or absent
-     * package yields the base allowance.
-     */
-    public static function forPaidPackage(?Package $package, bool $isPaid): self
-    {
-        return $isPaid && $package
-            ? self::fromPackage($package)
-            : self::base();
+        return $package ? self::fromPackage($package) : self::base();
     }
 
     /**
@@ -118,8 +104,8 @@ class PlanCapabilities
             seating: $allModules || str_contains($text, 'seating'),
             gallery: $allModules || str_contains($text, 'gallery'),
             gifts: $allModules || str_contains($text, 'gift'),
-            guestLimit: self::parseLimit($text, 'guest', self::BASE_GUEST_LIMIT),
-            invitationDesignLimit: self::parseLimit($text, 'design', self::BASE_DESIGN_LIMIT),
+            guestLimit: self::parseLimit($text, 'guest'),
+            invitationDesignLimit: self::parseLimit($text, 'design'),
         );
     }
 
@@ -169,11 +155,13 @@ class PlanCapabilities
     }
 
     /**
-     * Extract a numeric limit for $noun from the feature text:
+     * Extract a numeric limit for $noun from the feature text (legacy
+     * fallback for packages with no structured capabilities):
      * "unlimited ... <noun>" → null (no cap); "<N> ... <noun>" → N; if the
-     * noun is not mentioned at all, fall back to the base allowance.
+     * noun is not mentioned at all, treat as uncapped (the package was paid
+     * for, so don't accidentally block it).
      */
-    private static function parseLimit(string $text, string $noun, int $fallback): ?int
+    private static function parseLimit(string $text, string $noun): ?int
     {
         if (preg_match('/unlimited[^|]*'.$noun.'/', $text) === 1) {
             return null;
@@ -183,6 +171,6 @@ class PlanCapabilities
             return (int) str_replace(',', '', $matches[1]);
         }
 
-        return $fallback;
+        return null;
     }
 }
