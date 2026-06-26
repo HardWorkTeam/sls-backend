@@ -26,7 +26,6 @@ class InvitationTemplateController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
             'is_active' => 'sometimes|boolean',
         ]);
 
