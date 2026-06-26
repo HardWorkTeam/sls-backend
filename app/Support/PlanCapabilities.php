@@ -2,19 +2,20 @@
 
 namespace App\Support;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Package;
 use App\Models\Wedding;
 
 /**
- * Resolves what a wedding is actually allowed to do, derived from the
- * package it has *selected*. This is the single source of truth that turns a
- * selected package into enforced capabilities (gated modules + guest /
+ * Resolves what a wedding is actually allowed to do, derived from the package
+ * it has *paid* for. This is the single source of truth that turns a
+ * confirmed plan into enforced capabilities (gated modules + guest /
  * invitation-design limits).
  *
- * Capabilities follow the selected package immediately — payment is billing,
- * not a feature gate. The platform is not free: a wedding with no package
- * selected gets the locked {@see base()} allowance (nothing unlocked), so the
- * couple must choose a package to start.
+ * Features unlock only once the subscription is PAID (admin-confirmed).
+ * Selecting a package is not enough — pending, submitted and rejected all
+ * stay on the locked {@see base()} allowance. The platform is not free, so a
+ * wedding without a paid plan gets nothing unlocked.
  */
 class PlanCapabilities
 {
@@ -27,10 +28,11 @@ class PlanCapabilities
     ) {}
 
     /**
-     * Allowance for a wedding that has not selected any package yet. The
-     * platform is not free, so nothing is unlocked: no gated modules, zero
-     * guests, zero invitation designs. The couple can still preview the
-     * invitation templates (a public catalog) before choosing a plan.
+     * Allowance for a wedding without a PAID plan (none selected, or selected
+     * but pending / submitted / rejected). The platform is not free, so
+     * nothing is unlocked: no gated modules, zero guests, zero invitation
+     * designs. The couple can still preview the invitation templates (a
+     * public catalog) before paying.
      */
     public static function base(): self
     {
@@ -38,16 +40,30 @@ class PlanCapabilities
     }
 
     /**
-     * Capabilities for a wedding, following its SELECTED package
-     * (`weddings.package_id`). No package selected → base allowance.
+     * Capabilities for a wedding, gated on its PAID subscription only. A
+     * package that is merely selected (pending / submitted / rejected) does
+     * NOT unlock anything → base allowance.
      */
     public static function forWedding(Wedding $wedding): self
     {
-        $package = $wedding->relationLoaded('package')
-            ? $wedding->package
-            : $wedding->loadMissing('package')->package;
+        $paid = $wedding->subscriptions()
+            ->where('status', SubscriptionStatus::Paid->value)
+            ->with('package')
+            ->latest('id')
+            ->first();
 
-        return $package ? self::fromPackage($package) : self::base();
+        return self::forPaidPackage($paid?->package, $paid !== null);
+    }
+
+    /**
+     * Build from the package the wedding has paid for. A non-paid or absent
+     * package yields the base allowance.
+     */
+    public static function forPaidPackage(?Package $package, bool $isPaid): self
+    {
+        return $isPaid && $package
+            ? self::fromPackage($package)
+            : self::base();
     }
 
     /**

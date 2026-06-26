@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\SubscriptionStatus;
 use App\Support\PlanCapabilities;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -38,14 +39,23 @@ class WeddingResource extends JsonResource
                 'subscriptions',
                 fn () => $this->subscriptions->sortByDesc('id')->first()?->status?->value ?? 'unpaid',
             ),
-            // What this wedding can do — follows the SELECTED package
-            // (`package` relation, eager-loaded on index + show, no N+1).
-            // Use `when(relationLoaded)` rather than `whenLoaded('package')`:
-            // the latter returns null when the package is null, but a
-            // package-less wedding must still expose its (locked) base caps.
+            // What this wedding can do — gated on its PAID subscription only.
+            // Computed from the eager-loaded `subscriptions` + `package`
+            // relations (index + show both load them) to avoid an N+1.
             'capabilities' => $this->when(
-                $this->resource->relationLoaded('package'),
-                fn () => PlanCapabilities::forWedding($this->resource)->toArray(),
+                $this->resource->relationLoaded('subscriptions'),
+                function () {
+                    $paid = $this->subscriptions
+                        ->sortByDesc('id')
+                        ->firstWhere('status', SubscriptionStatus::Paid);
+
+                    // When paid the wedding's package_id is locked to the paid
+                    // package, so the eager-loaded `package` is the source.
+                    return PlanCapabilities::forPaidPackage(
+                        $paid && $this->resource->relationLoaded('package') ? $this->package : null,
+                        $paid !== null,
+                    )->toArray();
+                },
             ),
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),
             'members' => WeddingMemberResource::collection($this->whenLoaded('members')),
