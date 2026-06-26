@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'description',
     'starts_at',
     'location',
+    'google_map_link',
     'sort_order',
     'is_public',
 ])]

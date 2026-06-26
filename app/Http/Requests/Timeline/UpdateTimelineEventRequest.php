@@ -24,6 +24,7 @@ class UpdateTimelineEventRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string'],
             'starts_at' => ['sometimes', 'nullable', 'date'],
             'location' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'google_map_link' => ['sometimes', 'nullable', 'url', 'max:2048'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'is_public' => ['sometimes', 'boolean'],
         ];

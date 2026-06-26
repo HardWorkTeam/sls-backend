@@ -230,105 +230,141 @@ class DemoWeddingSeeder extends Seeder
             ],
         );
 
-        $this->seedPlatformData($organizer);
+        $this->seedPlatformData();
     }
 
     /**
-     * Generate a spread of registered users, weddings, invitations and paid
-     * subscriptions over the last 30 days so the super-admin Platform Analytics
-     * dashboard (revenue trend, system growth, package sales, template usage)
-     * renders against realistic data.
+     * Seed a realistic spread of Cambodian couples, their accounts, invitations
+     * and subscriptions across the last 30 days so the super-admin Platform
+     * Analytics dashboard (revenue trend, system growth, package sales, template
+     * usage) renders against believable data rather than obvious placeholders.
      */
-    private function seedPlatformData(User $organizer): void
+    private function seedPlatformData(): void
     {
-        // Weight package selection so sales rank Signature > Premium > Essential
-        // (matching the analytics mockup); revenue follows from package price.
         $packages = Package::query()->pluck('id', 'name');
-        $packagePlan = array_merge(
-            array_fill(0, 16, 'Signature'),
-            array_fill(0, 10, 'Premium'),
-            array_fill(0, 6, 'Essential'),
-        );
-
-        $templateIds = InvitationTemplate::query()->pluck('id')->all();
+        $packagePrice = Package::query()->pluck('price', 'name');
+        $templateIds = InvitationTemplate::query()->pluck('id', 'slug');
         $coupleRoleId = Role::query()->where('key', RoleKey::Couple->value)->value('id');
 
-        // Drop the old "guest-user" demo accounts — registered users are couples,
-        // and guests are display-only records that never have an account.
-        User::query()->where('email', 'like', 'guest-user-%@srolanh.com')->each(function (User $stale) {
-            $stale->roles()->detach();
-            $stale->delete();
-        });
+        // Clear out the old obviously-fake "Demo Couple N" / generic accounts left
+        // over from earlier seeds so the platform looks like genuine registrations.
+        Wedding::query()->where('wedding_code', 'like', 'WED-SEED%')->forceDelete();
+        User::query()
+            ->where('email', 'like', 'couple-user-%@srolanh.com')
+            ->orWhere('email', 'like', 'guest-user-%@srolanh.com')
+            ->each(function (User $stale) {
+                $stale->roles()->detach();
+                $stale->delete();
+            });
 
-        // Extra registered couples spread across the last 30 days (system growth).
-        for ($i = 1; $i <= 40; $i++) {
+        // [bride, groom, ceremony venue, city, package, template slug, status, days ago]
+        $couples = [
+            ['Sreymom Chan', 'Dara Kim', 'Sokha Phnom Penh Hotel', 'Phnom Penh', 'Signature', 'royal-khmer-v1', 'paid', 2],
+            ['Channary Sok', 'Vichea Heng', 'Raffles Hotel Le Royal', 'Phnom Penh', 'Signature', 'angkor-heritage-v1', 'paid', 3],
+            ['Bopha Lim', 'Rithy Pich', 'NagaWorld Grand Ballroom', 'Phnom Penh', 'Premium', 'royal-khmer-v1', 'paid', 4],
+            ['Kunthea Oun', 'Sovann Mao', 'Sofitel Phokeethra', 'Phnom Penh', 'Signature', 'emerald-elegance-v1', 'paid', 5],
+            ['Theary Tan', 'Chamroeun Chea', 'Hyatt Regency Phnom Penh', 'Phnom Penh', 'Premium', 'blue-botanical-v1', 'paid', 6],
+            ['Sreypov Sam', 'Kosal Ros', 'Koh Pich Convention Centre', 'Phnom Penh', 'Essential', 'royal-khmer-v1', 'paid', 7],
+            ['Chenda Nuon', 'Piseth Ky', 'Rosewood Phnom Penh', 'Phnom Penh', 'Signature', 'red-rose-luxury-v1', 'paid', 8],
+            ['Mealea Em', 'Veasna Meas', 'Hotel Cambodiana', 'Phnom Penh', 'Premium', 'butterfly-editorial-v1', 'paid', 9],
+            ['Phalla Hor', 'Sambath Yim', 'Himawari Hotel', 'Phnom Penh', 'Essential', 'angkor-heritage-v1', 'submitted', 1],
+            ['Raksmey Long', 'Makara Ung', 'Borey Peng Huoth Ballroom', 'Phnom Penh', 'Premium', 'royal-khmer-v1', 'paid', 11],
+            ['Nary Khorn', 'Channarith Seng', 'Olympia City Hall', 'Phnom Penh', 'Essential', 'emerald-elegance-v1', 'paid', 12],
+            ['Leakhena Yon', 'Visoth Run', 'Chaktomuk Conference Hall', 'Phnom Penh', 'Signature', 'red-rose-luxury-v1', 'paid', 13],
+            ['Dalin Chan', 'Sereyvuth Kim', 'Sokha Siem Reap Resort', 'Siem Reap', 'Premium', 'angkor-heritage-v1', 'paid', 14],
+            ['Sreyleak Sok', 'Phearak Heng', 'Angkor Paradise Hotel', 'Siem Reap', 'Essential', 'blue-botanical-v1', 'paid', 15],
+            ['Chanthavy Pich', 'Rattanak Oun', 'Wedding Palace Siem Reap', 'Siem Reap', 'Premium', 'royal-khmer-v1', 'submitted', 2],
+            ['Malis Mao', 'Vibol Chea', 'Borey Peng Huoth Ballroom', 'Phnom Penh', 'Signature', 'emerald-elegance-v1', 'paid', 17],
+            ['Vanna Ros', 'Pichet Sam', 'NagaWorld Grand Ballroom', 'Phnom Penh', 'Premium', 'butterfly-editorial-v1', 'paid', 18],
+            ['Pisey Ky', 'Samnang Nuon', 'Phnom Penh Hotel', 'Phnom Penh', 'Essential', 'royal-khmer-v1', 'paid', 19],
+            ['Sreyneang Em', 'Chanthou Meas', 'Hangneak Restaurant', 'Phnom Penh', 'Essential', 'angkor-heritage-v1', 'pending', 1],
+            ['Kanha Hor', 'Borey Yim', 'Vimean Tip Restaurant', 'Phnom Penh', 'Premium', 'red-rose-luxury-v1', 'paid', 21],
+            ['Sokunthea Long', 'Nimol Ung', 'Sofitel Phokeethra', 'Phnom Penh', 'Signature', 'royal-khmer-v1', 'paid', 23],
+            ['Davy Khorn', 'Visal Seng', 'Rosewood Phnom Penh', 'Phnom Penh', 'Signature', 'emerald-elegance-v1', 'paid', 25],
+            ['Sophea Yon', 'Sokha Run', 'Battambang Resort', 'Battambang', 'Essential', 'blue-botanical-v1', 'paid', 27],
+            ['Chanlina Tan', 'Veasna Phon', 'Independence Hotel Sihanoukville', 'Sihanoukville', 'Premium', 'butterfly-editorial-v1', 'pending', 3],
+        ];
+
+        foreach ($couples as $i => [$brideName, $groomName, $venue, $city, $packageName, $templateSlug, $status, $daysAgo]) {
+            $n = $i + 1;
+            $createdAt = now()->subDays($daysAgo)->setTime(9 + ($i % 10), ($i * 7) % 60);
+            $packageId = $packages[$packageName];
+
+            // The couple's primary contact registers the account.
+            [$brideGiven, $brideFamily] = array_pad(explode(' ', $brideName, 2), 2, '');
+            $email = strtolower($brideGiven.'.'.$brideFamily).$n.'@gmail.com';
             $user = User::query()->updateOrCreate(
-                ['email' => "couple-user-{$i}@srolanh.com"],
-                ['name' => "Couple User {$i}", 'password' => 'password', 'is_active' => true],
+                ['email' => $email],
+                ['name' => $brideName, 'password' => 'password', 'is_active' => true],
             );
             $user->roles()->syncWithoutDetaching([$coupleRoleId]);
-            $user->forceFill(['created_at' => now()->subDays(rand(0, 29))->setTime(rand(8, 20), rand(0, 59))])->save();
-        }
+            $user->forceFill(['created_at' => $createdAt->copy()->subDays(3)])->save();
 
-        foreach ($packagePlan as $index => $packageName) {
-            $n = $index + 1;
-            $packageId = $packages[$packageName];
-            $price = Package::query()->whereKey($packageId)->value('price');
-            $paidAt = now()->subDays(rand(0, 29))->setTime(rand(8, 20), rand(0, 59));
-
-            $w = Wedding::query()->updateOrCreate(
-                ['wedding_code' => sprintf('WED-SEED%03d', $n)],
+            $wedding = Wedding::query()->updateOrCreate(
+                ['wedding_code' => sprintf('WED-%s%03d', strtoupper(substr($brideGiven, 0, 2)), $n)],
                 [
-                    'wedding_name' => "Demo Couple {$n}",
-                    'bride_name' => "Bride {$n}",
-                    'groom_name' => "Groom {$n}",
-                    'wedding_date' => now()->addDays(rand(10, 120))->toDateString(),
+                    'wedding_name' => "{$brideGiven} & ".explode(' ', $groomName)[0],
+                    'bride_name' => $brideName,
+                    'groom_name' => $groomName,
+                    'phone' => sprintf('+855 %02d %03d %03d', rand(10, 99), rand(100, 999), rand(100, 999)),
+                    'email' => $email,
+                    'wedding_date' => now()->addDays(21 + $i * 4)->toDateString(),
+                    'wedding_time' => ['16:00', '16:30', '17:00', '17:30', '18:00'][$i % 5],
+                    'ceremony_venue' => $venue,
+                    'reception_venue' => $venue.', Grand Ballroom',
+                    'google_map_link' => 'https://maps.google.com/?q='.urlencode($venue.' '.$city),
                     'status' => WeddingStatus::Published->value,
-                    'published_at' => $paidAt,
+                    'published_at' => $createdAt,
                     'package_id' => $packageId,
-                    'created_by_user_id' => $organizer->id,
+                    'created_by_user_id' => $user->id,
                 ],
             );
 
-            $w->invitations()->updateOrCreate(
-                ['invitation_code' => sprintf('SEED%03d', $n)],
+            $wedding->invitations()->updateOrCreate(
+                ['invitation_code' => sprintf('INV%s%03d', strtoupper(substr($brideGiven, 0, 2)), $n)],
                 [
-                    'invitation_template_id' => $templateIds[$index % count($templateIds)],
-                    'title' => 'You are invited',
+                    'invitation_template_id' => $templateIds[$templateSlug],
+                    'title' => 'You are invited to our wedding',
                     'status' => InvitationStatus::Published->value,
-                    'published_at' => $paidAt,
+                    'published_at' => $createdAt,
                 ],
             );
 
-            // Vary status: most paid (revenue), a few submitted (awaiting admin),
-            // a few pending (package picked, not yet paid).
-            if ($n % 8 === 0) {
-                $status = SubscriptionStatus::Submitted->value;
-                $submittedAt = $paidAt;
-                $confirmedAt = null;
-            } elseif ($n % 8 === 1) {
-                $status = SubscriptionStatus::Pending->value;
-                $submittedAt = null;
-                $confirmedAt = null;
-            } else {
-                $status = SubscriptionStatus::Paid->value;
-                $submittedAt = $paidAt->copy()->subDay();
-                $confirmedAt = $paidAt;
-            }
+            $subStatus = match ($status) {
+                'paid' => SubscriptionStatus::Paid->value,
+                'submitted' => SubscriptionStatus::Submitted->value,
+                default => SubscriptionStatus::Pending->value,
+            };
 
             Subscription::query()->updateOrCreate(
-                ['wedding_id' => $w->id],
+                ['wedding_id' => $wedding->id],
                 [
                     'package_id' => $packageId,
-                    'amount' => $price,
+                    'amount' => $packagePrice[$packageName],
                     'currency' => 'USD',
-                    'status' => $status,
-                    'payment_method' => $status === SubscriptionStatus::Pending->value ? null : 'khqr',
-                    'payment_reference' => $status === SubscriptionStatus::Pending->value ? null : sprintf('SEED-TXN-%04d', $n),
-                    'submitted_at' => $submittedAt,
-                    'paid_at' => $confirmedAt,
+                    'status' => $subStatus,
+                    'payment_method' => $status === 'pending' ? null : (['aba', 'khqr', 'wing'][$i % 3]),
+                    'payment_reference' => $status === 'pending' ? null : sprintf('TXN-%s-%04d', strtoupper(substr($brideGiven, 0, 3)), $n),
+                    'submitted_at' => $status === 'pending' ? null : $createdAt->copy()->subDay(),
+                    'paid_at' => $status === 'paid' ? $createdAt : null,
                 ],
             );
+        }
+
+        // A handful of couples who registered but haven't created a wedding yet —
+        // real platforms always have more sign-ups than active events.
+        $browsers = [
+            ['Sothea Pen', 5], ['Chanda Vong', 8], ['Reaksa Ngin', 10], ['Sovannarith Lor', 13],
+            ['Sokleap Touch', 16], ['Veronica Sruoch', 19], ['Dymey Chhun', 22], ['Pheakdey Hak', 26],
+        ];
+        foreach ($browsers as $i => [$name, $daysAgo]) {
+            [$given, $family] = array_pad(explode(' ', $name, 2), 2, '');
+            $user = User::query()->updateOrCreate(
+                ['email' => strtolower($given.'.'.$family).'@gmail.com'],
+                ['name' => $name, 'password' => 'password', 'is_active' => true],
+            );
+            $user->roles()->syncWithoutDetaching([$coupleRoleId]);
+            $user->forceFill(['created_at' => now()->subDays($daysAgo)->setTime(10 + $i, ($i * 11) % 60)])->save();
         }
     }
 

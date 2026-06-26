@@ -24,6 +24,7 @@ class StoreTimelineEventRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'starts_at' => ['nullable', 'date'],
             'location' => ['nullable', 'string', 'max:255'],
+            'google_map_link' => ['nullable', 'url', 'max:2048'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
             'is_public' => ['sometimes', 'boolean'],
         ];
