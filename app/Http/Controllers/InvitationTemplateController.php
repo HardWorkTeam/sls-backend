@@ -6,6 +6,7 @@ use App\Http\Resources\InvitationTemplateResource;
 use App\Models\InvitationTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Validation\Rule;
 
 class InvitationTemplateController extends Controller
 {
@@ -25,6 +26,13 @@ class InvitationTemplateController extends Controller
     public function update(Request $request, InvitationTemplate $template): InvitationTemplateResource
     {
         $validated = $request->validate([
+            'slug' => [
+                'sometimes',
+                'string',
+                'max:255',
+                'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
+                Rule::unique('invitation_templates', 'slug')->ignore($template->id),
+            ],
             'name' => 'required|string|max:255',
             'is_active' => 'sometimes|boolean',
         ]);

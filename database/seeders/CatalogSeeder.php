@@ -70,7 +70,7 @@ class CatalogSeeder extends Seeder
                 'config' => ['primary_color' => '#6A8CB2', 'font' => 'Cormorant Garamond', 'layout' => 'botanical'],
             ],
             [
-                'slug' => 'phanaroth-luxury-v1',
+                'slug' => 'red-rose-luxury-v1',
                 'name' => 'Phanaroth Luxury',
                 'config' => ['primary_color' => '#E8C97A', 'font' => 'Playfair Display', 'layout' => 'luxury'],
             ],
