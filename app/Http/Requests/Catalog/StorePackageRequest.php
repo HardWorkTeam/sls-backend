@@ -28,8 +28,11 @@ class StorePackageRequest extends FormRequest
             'capabilities.modules.seating' => ['sometimes', 'boolean'],
             'capabilities.modules.gallery' => ['sometimes', 'boolean'],
             'capabilities.modules.gifts' => ['sometimes', 'boolean'],
-            'capabilities.guest_limit' => ['sometimes', 'nullable', 'integer', 'min:1'],
-            'capabilities.invitation_design_limit' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'capabilities.modules.expense' => ['sometimes', 'boolean'],
+            'capabilities.modules.rsvp' => ['sometimes', 'boolean'],
+            'capabilities.modules.timeline' => ['sometimes', 'boolean'],
+            'capabilities.guest_limit' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'capabilities.invitation_design_limit' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

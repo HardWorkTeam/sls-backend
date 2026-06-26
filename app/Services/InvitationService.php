@@ -135,13 +135,17 @@ class InvitationService
      */
     private function assertDesignCapacity(Wedding $wedding, ?int $templateId, ?int $ignoreInvitationId = null): void
     {
-        if ($templateId === null) {
-            return;
-        }
-
         $limit = PlanCapabilities::forWedding($wedding)->invitationDesignLimit;
 
-        if ($limit === null) {
+        // A plan with a 0 allowance (e.g. Free) includes no invitation designs
+        // at all — block creation regardless of template.
+        abort_if(
+            $limit === 0,
+            422,
+            'Your plan does not include invitation designs. Upgrade your plan to create one.',
+        );
+
+        if ($templateId === null || $limit === null) {
             return;
         }
 

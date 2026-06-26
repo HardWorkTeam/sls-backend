@@ -37,9 +37,18 @@ class SubscriptionService
     {
         $current = $this->current($wedding);
 
-        if ($current && $current->status === SubscriptionStatus::Paid) {
+        // A genuinely PAID plan locks in. A free plan auto-"pays" too, but the
+        // couple must stay able to upgrade away from it, so a paid *free* plan
+        // is not a lock.
+        if ($current
+            && $current->status === SubscriptionStatus::Paid
+            && ! ($current->package?->isFree() ?? false)) {
             return $current->load('package');
         }
+
+        // Free plans need no payment — activate (paid) on selection. Paid plans
+        // start pending and await the couple's payment + admin confirmation.
+        $isFree = $package->isFree();
 
         $subscription = $current ?? new Subscription(['wedding_id' => $wedding->id]);
         $subscription->fill([
@@ -47,11 +56,11 @@ class SubscriptionService
             'package_id' => $package->id,
             'amount' => $package->price ?? 0,
             'currency' => $package->currency ?? 'USD',
-            'status' => SubscriptionStatus::Pending->value,
+            'status' => $isFree ? SubscriptionStatus::Paid->value : SubscriptionStatus::Pending->value,
             'payment_method' => null,
             'payment_reference' => null,
             'submitted_at' => null,
-            'paid_at' => null,
+            'paid_at' => $isFree ? now() : null,
         ]);
         $subscription->save();
 

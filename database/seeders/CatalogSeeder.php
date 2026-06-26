@@ -12,13 +12,42 @@ class CatalogSeeder extends Seeder
     {
         $packages = [
             [
+                'name' => 'Free',
+                'description' => 'Get started for free: manage your guest list, track expenses and record gifts.',
+                'price' => 0,
+                'currency' => 'USD',
+                'features' => ['Guest list (up to 50 guests)', 'Expense tracking', 'Gift tracking'],
+                'capabilities' => [
+                    // Free unlocks ONLY the guest list, expense and gift folders.
+                    // No RSVP dashboard, seating, gallery, timeline or invitation
+                    // designs — those require a paid plan.
+                    'modules' => [
+                        'seating' => false,
+                        'gallery' => false,
+                        'gifts' => true,
+                        'expense' => true,
+                        'rsvp' => false,
+                        'timeline' => false,
+                    ],
+                    'guest_limit' => 50,
+                    'invitation_design_limit' => 0,
+                ],
+            ],
+            [
                 'name' => 'Essential',
                 'description' => 'Digital invitation, RSVP tracking and guest list for intimate weddings.',
                 'price' => 99,
                 'currency' => 'USD',
                 'features' => ['1 invitation design', 'Up to 150 guests', 'RSVP dashboard', 'QR code'],
                 'capabilities' => [
-                    'modules' => ['seating' => false, 'gallery' => false, 'gifts' => false],
+                    'modules' => [
+                        'seating' => false,
+                        'gallery' => false,
+                        'gifts' => false,
+                        'expense' => true,
+                        'rsvp' => true,
+                        'timeline' => true,
+                    ],
                     'guest_limit' => 150,
                     'invitation_design_limit' => 1,
                 ],
@@ -30,7 +59,14 @@ class CatalogSeeder extends Seeder
                 'currency' => 'USD',
                 'features' => ['3 invitation designs', 'Up to 500 guests', 'Seating planner', 'Gift tracking', 'Photo gallery'],
                 'capabilities' => [
-                    'modules' => ['seating' => true, 'gallery' => true, 'gifts' => true],
+                    'modules' => [
+                        'seating' => true,
+                        'gallery' => true,
+                        'gifts' => true,
+                        'expense' => true,
+                        'rsvp' => true,
+                        'timeline' => true,
+                    ],
                     'guest_limit' => 500,
                     'invitation_design_limit' => 3,
                 ],
@@ -42,7 +78,14 @@ class CatalogSeeder extends Seeder
                 'currency' => 'USD',
                 'features' => ['Unlimited designs', 'Unlimited guests', 'All modules', 'Priority support'],
                 'capabilities' => [
-                    'modules' => ['seating' => true, 'gallery' => true, 'gifts' => true],
+                    'modules' => [
+                        'seating' => true,
+                        'gallery' => true,
+                        'gifts' => true,
+                        'expense' => true,
+                        'rsvp' => true,
+                        'timeline' => true,
+                    ],
                     'guest_limit' => null,
                     'invitation_design_limit' => null,
                 ],

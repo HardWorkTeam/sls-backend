@@ -23,6 +23,9 @@ class PlanCapabilities
         public readonly bool $seating,
         public readonly bool $gallery,
         public readonly bool $gifts,
+        public readonly bool $expense,
+        public readonly bool $rsvp,
+        public readonly bool $timeline,
         public readonly ?int $guestLimit,            // null = unlimited
         public readonly ?int $invitationDesignLimit, // null = unlimited
     ) {}
@@ -36,7 +39,7 @@ class PlanCapabilities
      */
     public static function base(): self
     {
-        return new self(false, false, false, 0, 0);
+        return new self(false, false, false, false, false, false, 0, 0);
     }
 
     /**
@@ -95,6 +98,9 @@ class PlanCapabilities
             seating: (bool) ($modules['seating'] ?? false),
             gallery: (bool) ($modules['gallery'] ?? false),
             gifts: (bool) ($modules['gifts'] ?? false),
+            expense: (bool) ($modules['expense'] ?? false),
+            rsvp: (bool) ($modules['rsvp'] ?? false),
+            timeline: (bool) ($modules['timeline'] ?? false),
             guestLimit: self::normalizeLimit($data['guest_limit'] ?? null),
             invitationDesignLimit: self::normalizeLimit($data['invitation_design_limit'] ?? null),
         );
@@ -120,14 +126,21 @@ class PlanCapabilities
             seating: $allModules || str_contains($text, 'seating'),
             gallery: $allModules || str_contains($text, 'gallery'),
             gifts: $allModules || str_contains($text, 'gift'),
+            // Guest list, RSVP, expense and timeline were always-on basics for
+            // any paid plan before these became toggleable, so a legacy package
+            // (one with no structured capabilities) keeps them unlocked.
+            expense: true,
+            rsvp: true,
+            timeline: true,
             guestLimit: self::parseLimit($text, 'guest'),
             invitationDesignLimit: self::parseLimit($text, 'design'),
         );
     }
 
     /**
-     * Whether a gated module ('seating' | 'gallery' | 'gifts') is unlocked.
-     * Unknown modules are always allowed (base modules are never gated).
+     * Whether a gated module ('seating' | 'gallery' | 'gifts' | 'expense' |
+     * 'rsvp' | 'timeline') is unlocked. Unknown modules are always allowed
+     * (ungated features are never blocked).
      */
     public function allows(string $module): bool
     {
@@ -135,12 +148,15 @@ class PlanCapabilities
             'seating' => $this->seating,
             'gallery' => $this->gallery,
             'gifts' => $this->gifts,
+            'expense' => $this->expense,
+            'rsvp' => $this->rsvp,
+            'timeline' => $this->timeline,
             default => true,
         };
     }
 
     /**
-     * @return array{modules: array{seating: bool, gallery: bool, gifts: bool}, guest_limit: int|null, invitation_design_limit: int|null}
+     * @return array{modules: array{seating: bool, gallery: bool, gifts: bool, expense: bool, rsvp: bool, timeline: bool}, guest_limit: int|null, invitation_design_limit: int|null}
      */
     public function toArray(): array
     {
@@ -149,6 +165,9 @@ class PlanCapabilities
                 'seating' => $this->seating,
                 'gallery' => $this->gallery,
                 'gifts' => $this->gifts,
+                'expense' => $this->expense,
+                'rsvp' => $this->rsvp,
+                'timeline' => $this->timeline,
             ],
             'guest_limit' => $this->guestLimit,
             'invitation_design_limit' => $this->invitationDesignLimit,
@@ -156,8 +175,10 @@ class PlanCapabilities
     }
 
     /**
-     * Coerce a stored limit into either a positive int cap or null
-     * (unlimited). Empty string / null / 0 / negative all mean unlimited.
+     * Coerce a stored limit into either an int cap (>= 0) or null (unlimited).
+     * Only null / empty string mean unlimited; an explicit 0 is a real cap of
+     * zero (the feature is included in the plan with no allowance — e.g. the
+     * Free plan grants 0 invitation designs). Negatives clamp to 0.
      */
     private static function normalizeLimit(mixed $value): ?int
     {
@@ -165,9 +186,7 @@ class PlanCapabilities
             return null;
         }
 
-        $int = (int) $value;
-
-        return $int > 0 ? $int : null;
+        return max(0, (int) $value);
     }
 
     /**

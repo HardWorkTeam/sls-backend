@@ -138,10 +138,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/guests/{guest}', [GuestController::class, 'update']);
         Route::delete('/guests/{guest}', [GuestController::class, 'destroy']);
 
-        Route::get('/rsvps', [RsvpController::class, 'index']);
-        Route::get('/rsvps/stats', [RsvpController::class, 'stats']);
-        Route::put('/rsvps/{rsvp}', [RsvpController::class, 'update']);
-        Route::delete('/rsvps/{rsvp}', [RsvpController::class, 'destroy']);
+        // RSVP dashboard — gated to plans that include it.
+        Route::middleware('plan.module:rsvp')->group(function () {
+            Route::get('/rsvps', [RsvpController::class, 'index']);
+            Route::get('/rsvps/stats', [RsvpController::class, 'stats']);
+            Route::put('/rsvps/{rsvp}', [RsvpController::class, 'update']);
+            Route::delete('/rsvps/{rsvp}', [RsvpController::class, 'destroy']);
+        });
 
         // Seating planner — gated to plans that include it (Premium+).
         Route::middleware('plan.module:seating')->group(function () {
@@ -164,16 +167,22 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::delete('/gifts/{gift}', [GiftController::class, 'destroy']);
         });
 
-        Route::get('/expenses', [ExpenseController::class, 'index']);
-        Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
-        Route::post('/expenses', [ExpenseController::class, 'store']);
-        Route::put('/expenses/{expense}', [ExpenseController::class, 'update']);
-        Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy']);
+        // Expense tracking — gated to plans that include it (Free+).
+        Route::middleware('plan.module:expense')->group(function () {
+            Route::get('/expenses', [ExpenseController::class, 'index']);
+            Route::get('/expenses/summary', [ExpenseController::class, 'summary']);
+            Route::post('/expenses', [ExpenseController::class, 'store']);
+            Route::put('/expenses/{expense}', [ExpenseController::class, 'update']);
+            Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy']);
+        });
 
-        Route::get('/timeline-events', [TimelineEventController::class, 'index']);
-        Route::post('/timeline-events', [TimelineEventController::class, 'store']);
-        Route::put('/timeline-events/{event}', [TimelineEventController::class, 'update']);
-        Route::delete('/timeline-events/{event}', [TimelineEventController::class, 'destroy']);
+        // Timeline — gated to plans that include it.
+        Route::middleware('plan.module:timeline')->group(function () {
+            Route::get('/timeline-events', [TimelineEventController::class, 'index']);
+            Route::post('/timeline-events', [TimelineEventController::class, 'store']);
+            Route::put('/timeline-events/{event}', [TimelineEventController::class, 'update']);
+            Route::delete('/timeline-events/{event}', [TimelineEventController::class, 'destroy']);
+        });
 
         // Photo gallery — gated to plans that include it (Premium+).
         Route::middleware('plan.module:gallery')->group(function () {

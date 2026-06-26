@@ -26,4 +26,13 @@ class Package extends Model
     {
         return $this->hasMany(Wedding::class);
     }
+
+    /**
+     * A free plan ($0 or no price). Free plans activate the moment a couple
+     * selects them — no payment step or admin confirmation.
+     */
+    public function isFree(): bool
+    {
+        return (float) ($this->price ?? 0) <= 0;
+    }
 }
