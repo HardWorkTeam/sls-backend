@@ -13,6 +13,7 @@ class InvitationTemplateResource extends JsonResource
             'id' => $this->id,
             'slug' => $this->slug,
             'name' => $this->name,
+            'description' => $this->description,
             'preview_image_path' => $this->preview_image_path,
             'config' => $this->config,
             'is_active' => $this->is_active,

@@ -13,6 +13,7 @@ class InvitationTemplate extends Model
     protected $fillable = [
         'slug',
         'name',
+        'description',
         'preview_image_path',
         'config',
         'is_active',

@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/packages', [PackageController::class, 'store']);
         Route::put('/packages/{package}', [PackageController::class, 'update']);
         Route::delete('/packages/{package}', [PackageController::class, 'destroy']);
+        Route::put('/invitation-templates/{template}', [InvitationTemplateController::class, 'update']);
 
         Route::prefix('admin')->group(function () {
             Route::get('/roles', [UserController::class, 'roles']);
