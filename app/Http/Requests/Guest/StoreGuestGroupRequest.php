@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Guest;
 
 use App\Enums\GuestGroupType;
+use App\Models\GuestGroup;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,8 +19,23 @@ class StoreGuestGroupRequest extends FormRequest
      */
     public function rules(): array
     {
+        $weddingId = $this->route('wedding')?->id;
+
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'name' => [
+                'required', 'string', 'max:255',
+                // Group names are unique within a single wedding, case-insensitively.
+                function (string $attribute, mixed $value, \Closure $fail) use ($weddingId): void {
+                    $exists = GuestGroup::query()
+                        ->where('wedding_id', $weddingId)
+                        ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim((string) $value))])
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('A group with this name already exists.');
+                    }
+                },
+            ],
             'type' => ['sometimes', Rule::enum(GuestGroupType::class)],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ];
