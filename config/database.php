@@ -97,6 +97,16 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Neon (and any PgBouncer transaction-pooling endpoint) reuses backend
+            // connections across requests. With real server-side prepared statements,
+            // a plan cached on one request goes stale after a schema change and the
+            // next request fails with SQLSTATE[0A000] "cached plan must not change
+            // result type". Emulating prepares client-side avoids server-side plan
+            // caching entirely. Toggle off via DB_EMULATE_PREPARES=false on a
+            // non-pooled connection if you want real prepared statements.
+            'options' => extension_loaded('pdo_pgsql') ? array_filter([
+                PDO::ATTR_EMULATE_PREPARES => env('DB_EMULATE_PREPARES', true),
+            ], fn ($value) => $value !== null) : [],
         ],
 
         'sqlsrv' => [
