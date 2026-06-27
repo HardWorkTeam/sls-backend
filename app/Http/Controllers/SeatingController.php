@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Seating\AssignSeatRequest;
+use App\Http\Requests\Seating\ImportTablesRequest;
 use App\Http\Requests\Seating\StoreTableRequest;
 use App\Http\Requests\Seating\UpdateTableRequest;
 use App\Http\Resources\WeddingTableResource;
@@ -12,6 +13,7 @@ use App\Services\SeatingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
 class SeatingController extends Controller
 {
@@ -79,5 +81,25 @@ class SeatingController extends Controller
     public function report(Wedding $wedding): JsonResponse
     {
         return response()->json(['data' => $this->seatingService->report($wedding)]);
+    }
+
+    public function import(ImportTablesRequest $request, Wedding $wedding): JsonResponse
+    {
+        $result = $this->seatingService->importCsv($wedding, $request->file('file'));
+
+        return response()->json([
+            'message' => "Imported {$result['imported']} tables ({$result['skipped']} skipped).",
+            'data' => $result,
+        ]);
+    }
+
+    public function export(Wedding $wedding): Response
+    {
+        $csv = $this->seatingService->exportCsv($wedding);
+
+        return response($csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"seating-{$wedding->wedding_code}.csv\"",
+        ]);
     }
 }

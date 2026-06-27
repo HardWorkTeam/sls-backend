@@ -7,11 +7,16 @@ use App\Models\WeddingTable;
 use App\Repositories\GuestRepository;
 use App\Repositories\SeatingRepository;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SeatingService
 {
+    private const EXPORT_COLUMNS = [
+        'table_name', 'table_number', 'capacity', 'seated', 'guests',
+    ];
+
     public function __construct(
         private readonly SeatingRepository $seating,
         private readonly GuestRepository $guests,
@@ -153,5 +158,141 @@ class SeatingService
             'total_seated' => (int) $tables->sum(fn (WeddingTable $table) => $table->seatings->count()),
             'unseated_guests' => $unseated->count(),
         ];
+    }
+
+    /**
+     * Export the wedding's tables as CSV (opens directly in Excel). Each row is
+     * a table with its occupancy and the names of the guests seated there.
+     */
+    public function exportCsv(Wedding $wedding): string
+    {
+        $tables = $this->seating->tablesForWedding($wedding);
+
+        $handle = fopen('php://temp', 'r+b');
+        // BOM so Excel detects UTF-8 (Khmer names, accents, etc.).
+        fwrite($handle, "\xEF\xBB\xBF");
+        fputcsv($handle, self::EXPORT_COLUMNS);
+
+        foreach ($tables as $table) {
+            $guestNames = $table->seatings
+                ->map(fn ($seating) => $seating->guest?->name)
+                ->filter()
+                ->implode('; ');
+
+            fputcsv($handle, [
+                $table->table_name,
+                $table->table_number,
+                $table->capacity,
+                $table->seatings->count(),
+                $guestNames,
+            ]);
+        }
+
+        rewind($handle);
+        $csv = stream_get_contents($handle);
+        fclose($handle);
+
+        return $csv === false ? '' : $csv;
+    }
+
+    /**
+     * Import tables from a CSV file (Excel-compatible). Expected headers:
+     * table_name, table_number, capacity. Rows that clash with an existing
+     * table name or number are skipped (those columns are unique per wedding).
+     *
+     * @return array{imported: int, skipped: int, errors: list<string>}
+     */
+    public function importCsv(Wedding $wedding, UploadedFile $file): array
+    {
+        $handle = fopen($file->getRealPath(), 'rb');
+
+        if ($handle === false) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['Unable to read the uploaded file.']];
+        }
+
+        $header = fgetcsv($handle);
+
+        if ($header === false) {
+            fclose($handle);
+
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['The file is empty.']];
+        }
+
+        // Strip a UTF-8 BOM that Excel prepends to CSV exports.
+        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
+        $header = array_map(fn ($column) => strtolower(trim((string) $column)), $header);
+
+        // Existing names/numbers guard the per-wedding unique constraints so the
+        // import never trips a database error mid-file.
+        $existingNames = $wedding->tables()->pluck('table_name')
+            ->map(fn ($name) => mb_strtolower((string) $name))->all();
+        $existingNumbers = $wedding->tables()->whereNotNull('table_number')
+            ->pluck('table_number')->map(fn ($number) => (int) $number)->all();
+
+        $imported = 0;
+        $skipped = 0;
+        $errors = [];
+        $line = 1;
+
+        DB::transaction(function () use ($handle, $header, $wedding, &$existingNames, &$existingNumbers, &$imported, &$skipped, &$errors, &$line) {
+            while (($row = fgetcsv($handle)) !== false) {
+                $line++;
+
+                if (count($row) === 1 && trim((string) $row[0]) === '') {
+                    continue;
+                }
+
+                $data = array_combine($header, array_pad(array_map('trim', $row), count($header), null));
+
+                $name = $data['table_name'] ?? null;
+
+                if (empty($name)) {
+                    $skipped++;
+                    $errors[] = "Line {$line}: missing table name.";
+
+                    continue;
+                }
+
+                if (in_array(mb_strtolower($name), $existingNames, true)) {
+                    $skipped++;
+                    $errors[] = "Line {$line}: a table named \"{$name}\" already exists.";
+
+                    continue;
+                }
+
+                $number = isset($data['table_number']) && $data['table_number'] !== ''
+                    ? (int) $data['table_number']
+                    : null;
+
+                if ($number !== null && in_array($number, $existingNumbers, true)) {
+                    $skipped++;
+                    $errors[] = "Line {$line}: table number {$number} is already taken.";
+
+                    continue;
+                }
+
+                $capacity = isset($data['capacity']) && $data['capacity'] !== ''
+                    ? max(0, (int) $data['capacity'])
+                    : 0;
+
+                $wedding->tables()->create([
+                    'table_name' => $name,
+                    'table_number' => $number,
+                    'capacity' => $capacity,
+                ]);
+
+                $existingNames[] = mb_strtolower($name);
+
+                if ($number !== null) {
+                    $existingNumbers[] = $number;
+                }
+
+                $imported++;
+            }
+        });
+
+        fclose($handle);
+
+        return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
     }
 }

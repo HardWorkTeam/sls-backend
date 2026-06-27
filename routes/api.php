@@ -150,6 +150,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('plan.module:seating')->group(function () {
             Route::get('/tables', [SeatingController::class, 'tables']);
             Route::post('/tables', [SeatingController::class, 'storeTable']);
+            Route::post('/tables/import', [SeatingController::class, 'import']);
+            Route::get('/tables/export', [SeatingController::class, 'export']);
             Route::put('/tables/{table}', [SeatingController::class, 'updateTable']);
             Route::delete('/tables/{table}', [SeatingController::class, 'destroyTable']);
             Route::post('/seatings/assign', [SeatingController::class, 'assign']);
