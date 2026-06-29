@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\RoleKey;
 use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -45,8 +46,9 @@ class AuthService
      * @return array{user: User, token: string}
      *
      * @throws AuthenticationException
+     * @throws AuthorizationException
      */
-    public function login(string $email, string $password, ?string $deviceName = null): array
+    public function login(string $email, string $password, ?string $deviceName = null, ?string $portal = null): array
     {
         $user = User::query()
             ->where('email', $email)
@@ -61,10 +63,46 @@ class AuthService
             throw new AuthenticationException('This account has been deactivated.');
         }
 
+        $this->assertPortalAccess($user, $portal);
+
         return [
             'user' => $user,
             'token' => $this->issueToken($user, $deviceName),
         ];
+    }
+
+    /**
+     * Enforce which app "portal" a user may sign in to. The couple portal
+     * (sls-client) is for couples only — platform admins and organizers must
+     * use the admin portal. An absent/unknown portal stays unrestricted so the
+     * shared login endpoint remains backward compatible.
+     *
+     * @throws AuthorizationException
+     */
+    private function assertPortalAccess(User $user, ?string $portal): void
+    {
+        /** @var list<RoleKey>|null $allowedRoles */
+        $allowedRoles = match ($portal) {
+            'couple' => [RoleKey::Couple],
+            'admin' => [RoleKey::SuperAdmin, RoleKey::Organizer],
+            default => null,
+        };
+
+        if ($allowedRoles === null) {
+            return;
+        }
+
+        foreach ($allowedRoles as $role) {
+            if ($user->hasRole($role)) {
+                return;
+            }
+        }
+
+        throw new AuthorizationException(
+            $portal === 'couple'
+                ? 'This is the couple portal. Admin accounts must sign in through the admin portal.'
+                : 'Your account is not permitted to access this portal.'
+        );
     }
 
     /**

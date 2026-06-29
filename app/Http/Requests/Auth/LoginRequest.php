@@ -20,6 +20,8 @@ class LoginRequest extends FormRequest
             'email' => ['required', 'email'],
             'password' => ['required', 'string', 'min:6'],
             'device_name' => ['sometimes', 'string', 'max:120'],
+            // Which app is signing in. Gates role-based portal access.
+            'portal' => ['sometimes', 'string', 'in:couple,admin'],
         ];
     }
 }
