@@ -43,6 +43,11 @@ Route::prefix('public')->group(function () {
     Route::get('/invitations/{code}', [PublicInvitationController::class, 'show']);
     Route::post('/invitations/{code}/rsvp', [PublicInvitationController::class, 'rsvp'])
         ->middleware('throttle:20,1');
+
+    // Catalog for the marketing site (sls-web). No auth: the controllers fall
+    // back to active-only records when there is no authenticated super admin.
+    Route::get('/packages', [PackageController::class, 'index']);
+    Route::get('/invitation-templates', [InvitationTemplateController::class, 'index']);
 });
 
 /*
