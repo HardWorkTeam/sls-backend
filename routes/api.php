@@ -14,6 +14,7 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\InvitationTemplateController;
 use App\Http\Controllers\PackageController;
 use App\Http\Controllers\PublicInvitationController;
+use App\Http\Controllers\PublicStatsController;
 use App\Http\Controllers\RsvpController;
 use App\Http\Controllers\SeatingController;
 use App\Http\Controllers\SubscriptionController;
@@ -48,6 +49,9 @@ Route::prefix('public')->group(function () {
     // back to active-only records when there is no authenticated super admin.
     Route::get('/packages', [PackageController::class, 'index']);
     Route::get('/invitation-templates', [InvitationTemplateController::class, 'index']);
+
+    // Headline platform stats for the marketing site (e.g. total couples).
+    Route::get('/stats', [PublicStatsController::class, 'index']);
 });
 
 /*
