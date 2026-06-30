@@ -144,11 +144,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/guests/import', [GuestController::class, 'import']);
         Route::get('/guests/export', [GuestController::class, 'export']);
         Route::post('/guests/bulk-invite', [GuestController::class, 'bulkInvite']);
-        // Wedding-day check-in (static paths before the {guest} wildcard).
-        Route::get('/guests/check-in/stats', [GuestController::class, 'checkInStats']);
-        Route::post('/guests/check-in', [GuestController::class, 'checkIn']);
-        Route::get('/guests/{guest}/qr', [GuestController::class, 'qrCode']);
-        Route::post('/guests/{guest}/check-in', [GuestController::class, 'setCheckIn']);
+
+        // Wedding-day QR check-in — gated to plans that include it. Static
+        // paths are registered before the {guest} wildcard so "check-in" is
+        // never captured as a guest id.
+        Route::middleware('plan.module:checkin')->group(function () {
+            Route::get('/guests/check-in/stats', [GuestController::class, 'checkInStats']);
+            Route::post('/guests/check-in', [GuestController::class, 'checkIn']);
+            Route::get('/guests/{guest}/qr', [GuestController::class, 'qrCode']);
+            Route::post('/guests/{guest}/check-in', [GuestController::class, 'setCheckIn']);
+        });
+
         Route::put('/guests/{guest}', [GuestController::class, 'update']);
         Route::delete('/guests/{guest}', [GuestController::class, 'destroy']);
 

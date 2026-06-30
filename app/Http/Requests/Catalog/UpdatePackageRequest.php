@@ -37,6 +37,7 @@ class UpdatePackageRequest extends FormRequest
             'capabilities.modules.expense' => ['sometimes', 'boolean'],
             'capabilities.modules.rsvp' => ['sometimes', 'boolean'],
             'capabilities.modules.timeline' => ['sometimes', 'boolean'],
+            'capabilities.modules.checkin' => ['sometimes', 'boolean'],
             'capabilities.guest_limit' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'capabilities.invitation_design_limit' => ['sometimes', 'nullable', 'integer', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
