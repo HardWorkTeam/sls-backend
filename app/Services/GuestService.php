@@ -6,6 +6,10 @@ use App\Models\Guest;
 use App\Models\Wedding;
 use App\Repositories\GuestRepository;
 use App\Support\PlanCapabilities;
+use BaconQrCode\Renderer\Image\SvgImageBackEnd;
+use BaconQrCode\Renderer\ImageRenderer;
+use BaconQrCode\Renderer\RendererStyle\RendererStyle;
+use BaconQrCode\Writer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -75,6 +79,71 @@ class GuestService
     public function delete(Guest $guest): void
     {
         $this->guests->delete($guest);
+    }
+
+    /**
+     * Check a guest in by their QR token (wedding-day scan). The token is
+     * scoped to the wedding so a code from another event never matches.
+     *
+     * @return array{guest: Guest, already_checked_in: bool}
+     */
+    public function checkInByToken(Wedding $wedding, string $token): array
+    {
+        $guest = $this->guests->findByToken($wedding, $token);
+
+        abort_if($guest === null, 404, 'No guest matches this code for this wedding.');
+
+        $already = $guest->isCheckedIn();
+
+        if (! $already) {
+            $this->guests->update($guest, ['checked_in_at' => now()]);
+        }
+
+        return [
+            'guest' => $guest->load(['group', 'invitation', 'seating.table']),
+            'already_checked_in' => $already,
+        ];
+    }
+
+    /**
+     * Manually mark a guest as arrived / not arrived from the guest list.
+     */
+    public function setCheckIn(Guest $guest, bool $arrived): Guest
+    {
+        $this->guests->update($guest, ['checked_in_at' => $arrived ? now() : null]);
+
+        return $guest->load(['group', 'invitation', 'seating.table']);
+    }
+
+    /**
+     * Render a guest's check-in QR code (their opaque token) as an SVG. Printed
+     * onto the invitation and scanned at the door on the wedding day.
+     */
+    public function qrCodeSvg(Guest $guest, int $size = 320): string
+    {
+        $renderer = new ImageRenderer(
+            new RendererStyle($size),
+            new SvgImageBackEnd,
+        );
+
+        return (new Writer($renderer))->writeString((string) $guest->check_in_token);
+    }
+
+    /**
+     * Arrival tally for the wedding-day check-in dashboard.
+     *
+     * @return array{total: int, arrived: int, pending: int}
+     */
+    public function checkInStats(Wedding $wedding): array
+    {
+        $total = $wedding->guests()->count();
+        $arrived = $wedding->guests()->whereNotNull('checked_in_at')->count();
+
+        return [
+            'total' => $total,
+            'arrived' => $arrived,
+            'pending' => $total - $arrived,
+        ];
     }
 
     /**

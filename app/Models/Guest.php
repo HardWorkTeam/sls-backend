@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 #[Fillable([
     'wedding_id',
@@ -20,16 +21,32 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'address',
     'note',
     'is_vip',
+    'check_in_token',
+    'checked_in_at',
 ])]
 class Guest extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        // Every guest carries an opaque token for their personal check-in QR.
+        static::creating(function (Guest $guest): void {
+            $guest->check_in_token ??= (string) Str::ulid();
+        });
+    }
+
     protected function casts(): array
     {
         return [
             'is_vip' => 'boolean',
+            'checked_in_at' => 'datetime',
         ];
+    }
+
+    public function isCheckedIn(): bool
+    {
+        return $this->checked_in_at !== null;
     }
 
     public function wedding(): BelongsTo

@@ -144,6 +144,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/guests/import', [GuestController::class, 'import']);
         Route::get('/guests/export', [GuestController::class, 'export']);
         Route::post('/guests/bulk-invite', [GuestController::class, 'bulkInvite']);
+        // Wedding-day check-in (static paths before the {guest} wildcard).
+        Route::get('/guests/check-in/stats', [GuestController::class, 'checkInStats']);
+        Route::post('/guests/check-in', [GuestController::class, 'checkIn']);
+        Route::get('/guests/{guest}/qr', [GuestController::class, 'qrCode']);
+        Route::post('/guests/{guest}/check-in', [GuestController::class, 'setCheckIn']);
         Route::put('/guests/{guest}', [GuestController::class, 'update']);
         Route::delete('/guests/{guest}', [GuestController::class, 'destroy']);
 

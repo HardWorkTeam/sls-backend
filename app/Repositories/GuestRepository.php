@@ -43,6 +43,17 @@ class GuestRepository extends EloquentRepository
     }
 
     /**
+     * Resolve a guest by their check-in token within a wedding.
+     */
+    public function findByToken(Wedding $wedding, string $token): ?Guest
+    {
+        return $this->query()
+            ->where('wedding_id', $wedding->id)
+            ->where('check_in_token', $token)
+            ->first();
+    }
+
+    /**
      * @return Collection<int, Guest>
      */
     public function unseatedForWedding(Wedding $wedding): Collection

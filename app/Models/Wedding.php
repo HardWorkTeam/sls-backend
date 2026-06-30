@@ -115,5 +115,4 @@ class Wedding extends Model
     {
         return $this->hasMany(Album::class);
     }
-
 }

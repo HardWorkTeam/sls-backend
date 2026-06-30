@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Guest\BulkInviteRequest;
+use App\Http\Requests\Guest\CheckInRequest;
 use App\Http\Requests\Guest\ImportGuestsRequest;
 use App\Http\Requests\Guest\StoreGuestRequest;
 use App\Http\Requests\Guest\UpdateGuestRequest;
@@ -89,5 +90,50 @@ class GuestController extends Controller
         );
 
         return response()->json(['message' => "Invitation attached to {$updated} guests."]);
+    }
+
+    /**
+     * Render a guest's personal check-in QR code as an SVG (for printing onto
+     * the invitation).
+     */
+    public function qrCode(Wedding $wedding, Guest $guest): Response
+    {
+        abort_unless($guest->wedding_id === $wedding->id, 404);
+
+        return response($this->guestService->qrCodeSvg($guest), 200, [
+            'Content-Type' => 'image/svg+xml',
+            'Content-Disposition' => "inline; filename=\"guest-{$guest->id}-qr.svg\"",
+        ]);
+    }
+
+    /**
+     * Wedding-day check-in: resolve a scanned QR token and mark the guest as
+     * arrived. Returns the guest plus whether they were already checked in.
+     */
+    public function checkIn(CheckInRequest $request, Wedding $wedding): JsonResponse
+    {
+        $result = $this->guestService->checkInByToken($wedding, $request->validated('token'));
+
+        return response()->json([
+            'data' => GuestResource::make($result['guest']),
+            'already_checked_in' => $result['already_checked_in'],
+        ]);
+    }
+
+    /**
+     * Manually flip a guest's arrival status from the guest list.
+     */
+    public function setCheckIn(Wedding $wedding, Guest $guest, Request $request): GuestResource
+    {
+        abort_unless($guest->wedding_id === $wedding->id, 404);
+
+        return GuestResource::make(
+            $this->guestService->setCheckIn($guest, $request->boolean('arrived', true)),
+        );
+    }
+
+    public function checkInStats(Wedding $wedding): JsonResponse
+    {
+        return response()->json(['data' => $this->guestService->checkInStats($wedding)]);
     }
 }
