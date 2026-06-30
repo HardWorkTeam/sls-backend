@@ -40,7 +40,10 @@ class InvitationRepository extends EloquentRepository
             ->with([
                 'template',
                 'wedding.timelineEvents' => fn ($q) => $q->where('is_public', true)->orderBy('starts_at'),
+                // Only public albums appear on the invitation, and within them
+                // only photos the couple has kept public (the per-photo toggle).
                 'wedding.albums' => fn ($q) => $q->where('is_public', true),
+                'wedding.albums.mediaItems' => fn ($q) => $q->where('is_public', true),
             ]);
 
         if ($publishedOnly) {
