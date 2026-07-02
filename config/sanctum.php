@@ -50,7 +50,11 @@ return [
     |
     */
 
-    'expiration' => null,
+    // Bearer tokens are stored client-side, so a leaked token stays usable
+    // until it expires. Bound their lifetime (default 6 hours) and let clients
+    // silently renew via POST /api/auth/refresh. Set SANCTUM_EXPIRATION=0 to
+    // restore non-expiring tokens.
+    'expiration' => ((int) env('SANCTUM_EXPIRATION', 60 * 6)) ?: null,
 
     /*
     |--------------------------------------------------------------------------
