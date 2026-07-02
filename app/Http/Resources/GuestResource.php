@@ -22,6 +22,7 @@ class GuestResource extends JsonResource
             'note' => $this->note,
             'is_vip' => $this->is_vip,
             'check_in_token' => $this->check_in_token,
+            'check_in_code' => $this->check_in_code,
             'checked_in_at' => $this->checked_in_at?->toIso8601String(),
             'group' => GuestGroupResource::make($this->whenLoaded('group')),
             'invitation' => InvitationResource::make($this->whenLoaded('invitation')),

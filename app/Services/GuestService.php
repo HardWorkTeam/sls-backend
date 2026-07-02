@@ -116,8 +116,10 @@ class GuestService
     }
 
     /**
-     * Render a guest's check-in QR code (their opaque token) as an SVG. Printed
-     * onto the invitation and scanned at the door on the wedding day.
+     * Render a guest's check-in QR code (their short code) as an SVG. Printed
+     * onto the invitation and scanned at the door on the wedding day. Encodes
+     * the same short code shown as text so scanning and manual entry resolve
+     * identically.
      */
     public function qrCodeSvg(Guest $guest, int $size = 320): string
     {
@@ -126,7 +128,9 @@ class GuestService
             new SvgImageBackEnd,
         );
 
-        return (new Writer($renderer))->writeString((string) $guest->check_in_token);
+        return (new Writer($renderer))->writeString(
+            (string) ($guest->check_in_code ?? $guest->check_in_token),
+        );
     }
 
     /**

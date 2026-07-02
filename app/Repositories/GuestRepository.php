@@ -43,13 +43,20 @@ class GuestRepository extends EloquentRepository
     }
 
     /**
-     * Resolve a guest by their check-in token within a wedding.
+     * Resolve a guest by their check-in credential within a wedding. Accepts
+     * either the opaque QR token or the short, human-friendly code (which staff
+     * may type in any case).
      */
     public function findByToken(Wedding $wedding, string $token): ?Guest
     {
+        $code = strtoupper(trim($token));
+
         return $this->query()
             ->where('wedding_id', $wedding->id)
-            ->where('check_in_token', $token)
+            ->where(function ($query) use ($token, $code) {
+                $query->where('check_in_token', $token)
+                    ->orWhere('check_in_code', $code);
+            })
             ->first();
     }
 
