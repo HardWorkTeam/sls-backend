@@ -118,7 +118,7 @@ class CatalogSeeder extends Seeder
             ],
             [
                 'slug' => 'red-rose-luxury-v1',
-                'name' => 'Phanaroth Luxury',
+                'name' => 'Red Rose Luxury',
                 'config' => ['primary_color' => '#E8C97A', 'font' => 'Playfair Display', 'layout' => 'luxury'],
             ],
             [
