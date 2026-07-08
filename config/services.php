@@ -44,6 +44,10 @@ return [
     'rsvp' => [
         // Public RSVP website base URL, used for invitation links + QR codes.
         'url' => env('RSVP_APP_URL', 'http://localhost:3002'),
+        // Shared secret for the RSVP site's on-demand cache-revalidation
+        // webhook. When set, publishing/editing an invitation tells Next.js to
+        // drop its cached copy immediately (otherwise it expires on its own TTL).
+        'revalidate_secret' => env('RSVP_REVALIDATE_SECRET'),
     ],
 
     'client' => [

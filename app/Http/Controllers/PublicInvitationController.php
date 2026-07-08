@@ -7,21 +7,44 @@ use App\Http\Resources\PublicInvitationResource;
 use App\Services\InvitationService;
 use App\Services\RsvpService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 
 class PublicInvitationController extends Controller
 {
+    /**
+     * Seconds a serialized public invitation stays cached. Bounded staleness
+     * that matches the RSVP frontend's revalidate window; writes also forget
+     * the key (see InvitationService) so edits usually appear immediately.
+     */
+    private const CACHE_TTL = 30;
+
     public function __construct(
         private readonly InvitationService $invitationService,
         private readonly RsvpService $rsvpService,
     ) {}
 
-    public function show(string $code): PublicInvitationResource
+    public function show(string $code): JsonResponse
     {
-        $invitation = $this->invitationService->findByCode($code);
+        // Cache the serialized payload, not the Eloquent model: every guest hit
+        // otherwise re-runs a 4-table join (wedding + timeline + albums + media)
+        // against Postgres. Unknown codes are intentionally NOT cached so random
+        // codes can't fill the cache; they 404 straight from the DB.
+        $key = InvitationService::publicCacheKey($code);
+        $data = Cache::get($key);
 
-        abort_unless((bool) $invitation, 404, 'Invitation not found.');
+        if ($data === null) {
+            // Public site only ever serves PUBLISHED invitations — drafts must
+            // not be viewable by guessing/knowing the code (consistent with the
+            // rsvp() endpoint, which already requires a published invitation).
+            $invitation = $this->invitationService->findPublishedByCode($code);
 
-        return PublicInvitationResource::make($invitation);
+            abort_unless((bool) $invitation, 404, 'Invitation not found.');
+
+            $data = PublicInvitationResource::make($invitation)->resolve();
+            Cache::put($key, $data, self::CACHE_TTL);
+        }
+
+        return response()->json(['data' => $data]);
     }
 
     public function rsvp(PublicRsvpRequest $request, string $code): JsonResponse

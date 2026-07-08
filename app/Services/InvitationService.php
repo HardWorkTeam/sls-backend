@@ -13,6 +13,8 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class InvitationService
@@ -21,6 +23,43 @@ class InvitationService
         private readonly InvitationRepository $invitations,
         private readonly GalleryService $galleryService,
     ) {}
+
+    /** Cache key for a code's serialized public payload (see PublicInvitationController). */
+    public static function publicCacheKey(string $code): string
+    {
+        return "public_invitation:{$code}";
+    }
+
+    /** Drop the cached public payload so the next guest sees fresh content. */
+    private function forgetPublicCache(Invitation $invitation): void
+    {
+        Cache::forget(self::publicCacheKey($invitation->invitation_code));
+        $this->pingRsvpRevalidate($invitation->invitation_code);
+    }
+
+    /**
+     * Best-effort: tell the RSVP site to drop its Next.js Data Cache entry for
+     * this code so edits appear immediately rather than after the TTL. Disabled
+     * when no secret is configured; failures are swallowed (the TTL is the
+     * safety net) so a couple's save never fails because the site is down.
+     */
+    private function pingRsvpRevalidate(string $code): void
+    {
+        $secret = config('services.rsvp.revalidate_secret');
+        if (! $secret) {
+            return;
+        }
+
+        $base = rtrim((string) config('services.rsvp.url'), '/');
+
+        try {
+            Http::timeout(2)
+                ->withHeaders(['x-revalidate-secret' => $secret])
+                ->post("{$base}/api/revalidate", ['code' => $code]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
 
     /**
      * @return Collection<int, Invitation>
@@ -64,6 +103,8 @@ class InvitationService
 
         $this->invitations->update($invitation, $attributes);
 
+        $this->forgetPublicCache($invitation);
+
         $newUrls = $this->extractImageUrls($invitation->cover_image_path, $invitation->settings);
         $removedUrls = array_diff($oldUrls, $newUrls);
 
@@ -85,6 +126,7 @@ class InvitationService
 
     public function delete(Invitation $invitation): void
     {
+        $this->forgetPublicCache($invitation);
         $this->invitations->delete($invitation);
     }
 
@@ -94,6 +136,8 @@ class InvitationService
             'status' => InvitationStatus::Published->value,
             'published_at' => now(),
         ]);
+
+        $this->forgetPublicCache($invitation);
 
         return $invitation;
     }
