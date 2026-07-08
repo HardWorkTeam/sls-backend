@@ -97,7 +97,15 @@ class GuestService
         $already = $guest->isCheckedIn();
 
         if (! $already) {
-            $this->guests->update($guest, ['checked_in_at' => now()]);
+            // Atomic claim: two door staff scanning the same code concurrently
+            // race the read above, so let the database decide who was first.
+            $claimed = $this->guests->query()
+                ->whereKey($guest->id)
+                ->whereNull('checked_in_at')
+                ->update(['checked_in_at' => now()]);
+
+            $already = $claimed === 0;
+            $guest->refresh();
         }
 
         return [
@@ -209,7 +217,15 @@ class GuestService
                     continue;
                 }
 
-                $data = array_combine($header, array_pad(array_map('trim', $row), count($header), null));
+                // Normalize the row to exactly the header's width — pad short
+                // rows, truncate long ones (stray trailing columns from
+                // hand-edited files). array_combine throws on a length
+                // mismatch, which would 500 the whole import.
+                $cells = array_map(fn ($cell) => trim((string) $cell), $row);
+                $data = array_combine(
+                    $header,
+                    array_slice(array_pad($cells, count($header), null), 0, count($header)),
+                );
 
                 if (empty($data['name'])) {
                     $skipped++;

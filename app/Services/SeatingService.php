@@ -65,25 +65,31 @@ class SeatingService
      */
     public function assign(Wedding $wedding, int $guestId, int $tableId, ?int $seatNumber = null): void
     {
-        $guest = $this->guests->query()
-            ->where('wedding_id', $wedding->id)
-            ->findOrFail($guestId);
+        DB::transaction(function () use ($wedding, $guestId, $tableId, $seatNumber) {
+            $guest = $this->guests->query()
+                ->where('wedding_id', $wedding->id)
+                ->findOrFail($guestId);
 
-        /** @var WeddingTable $table */
-        $table = $this->seating->query()
-            ->where('wedding_id', $wedding->id)
-            ->findOrFail($tableId);
+            // Lock the table row so concurrent assigns to the same table
+            // serialize — otherwise both pass the capacity check below and
+            // overfill it.
+            /** @var WeddingTable $table */
+            $table = $this->seating->query()
+                ->where('wedding_id', $wedding->id)
+                ->lockForUpdate()
+                ->findOrFail($tableId);
 
-        $current = $this->seating->findSeatingForGuest($wedding, $guest->id);
-        $occupied = $this->seating->seatedCount($table);
+            $current = $this->seating->findSeatingForGuest($wedding, $guest->id);
+            $occupied = $this->seating->seatedCount($table);
 
-        if ($current?->wedding_table_id !== $table->id && $table->capacity > 0 && $occupied >= $table->capacity) {
-            throw ValidationException::withMessages([
-                'wedding_table_id' => ["Table \"{$table->table_name}\" is already full ({$table->capacity} seats)."],
-            ]);
-        }
+            if ($current?->wedding_table_id !== $table->id && $table->capacity > 0 && $occupied >= $table->capacity) {
+                throw ValidationException::withMessages([
+                    'wedding_table_id' => ["Table \"{$table->table_name}\" is already full ({$table->capacity} seats)."],
+                ]);
+            }
 
-        $this->seating->assign($wedding, $guest->id, $table->id, $seatNumber);
+            $this->seating->assign($wedding, $guest->id, $table->id, $seatNumber);
+        });
     }
 
     public function unassign(Wedding $wedding, int $guestId): void
@@ -243,7 +249,15 @@ class SeatingService
                     continue;
                 }
 
-                $data = array_combine($header, array_pad(array_map('trim', $row), count($header), null));
+                // Normalize the row to exactly the header's width — pad short
+                // rows, truncate long ones (stray trailing columns from
+                // hand-edited files). array_combine throws on a length
+                // mismatch, which would 500 the whole import.
+                $cells = array_map(fn ($cell) => trim((string) $cell), $row);
+                $data = array_combine(
+                    $header,
+                    array_slice(array_pad($cells, count($header), null), 0, count($header)),
+                );
 
                 $name = $data['table_name'] ?? null;
 

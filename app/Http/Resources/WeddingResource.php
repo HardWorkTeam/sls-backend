@@ -39,6 +39,15 @@ class WeddingResource extends JsonResource
                 'subscriptions',
                 fn () => $this->subscriptions->sortByDesc('id')->first()?->status?->value ?? 'unpaid',
             ),
+            // Whether the wedding holds ANY paid (active) plan. `payment_status`
+            // above tracks the latest subscription — which is the in-flight
+            // upgrade while one is pending — so gating must not key off it.
+            'has_active_plan' => $this->whenLoaded(
+                'subscriptions',
+                fn () => $this->subscriptions->contains(
+                    fn ($subscription) => $subscription->status === SubscriptionStatus::Paid,
+                ),
+            ),
             // What this wedding can do — gated on its PAID subscription only.
             // Computed from the eager-loaded `subscriptions` + `package`
             // relations (index + show both load them) to avoid an N+1.
@@ -49,12 +58,22 @@ class WeddingResource extends JsonResource
                         ->sortByDesc('id')
                         ->firstWhere('status', SubscriptionStatus::Paid);
 
-                    // When paid the wedding's package_id is locked to the paid
-                    // package, so the eager-loaded `package` is the source.
-                    return PlanCapabilities::forPaidPackage(
-                        $paid && $this->resource->relationLoaded('package') ? $this->package : null,
-                        $paid !== null,
-                    )->toArray();
+                    // The wedding's `package` relation mirrors the latest
+                    // SELECTION, which diverges from the paid plan while an
+                    // upgrade awaits payment/confirmation — capabilities must
+                    // come from the paid subscription's own package. The mirror
+                    // is only trusted when it matches (the common, paid-locked
+                    // case); otherwise fall back to the subscription's package
+                    // (lazy load, only during an upgrade window).
+                    $package = null;
+
+                    if ($paid) {
+                        $mirrorMatches = $this->resource->relationLoaded('package')
+                            && $this->package?->id === $paid->package_id;
+                        $package = $mirrorMatches ? $this->package : $paid->package;
+                    }
+
+                    return PlanCapabilities::forPaidPackage($package, $paid !== null)->toArray();
                 },
             ),
             'created_by' => UserResource::make($this->whenLoaded('createdBy')),

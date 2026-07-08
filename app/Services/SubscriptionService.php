@@ -8,6 +8,7 @@ use App\Models\Subscription;
 use App\Models\Wedding;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Owns the package-payment lifecycle: a couple selects a package (pending),
@@ -35,38 +36,70 @@ class SubscriptionService
      */
     public function selectPackage(Wedding $wedding, Package $package): Subscription
     {
-        $current = $this->current($wedding);
+        return DB::transaction(function () use ($wedding, $package) {
+            // Lock the wedding's latest subscription row so a concurrent
+            // select/pay/confirm on the same wedding serializes instead of
+            // last-write-wins clobbering each other.
+            $current = $wedding->subscriptions()
+                ->with('package')
+                ->latest('id')
+                ->lockForUpdate()
+                ->first();
 
-        // A genuinely PAID plan locks in. A free plan auto-"pays" too, but the
-        // couple must stay able to upgrade away from it, so a paid *free* plan
-        // is not a lock.
-        if ($current
-            && $current->status === SubscriptionStatus::Paid
-            && ! ($current->package?->isFree() ?? false)) {
-            return $current->load('package');
-        }
+            // A genuinely PAID plan locks in. A free plan auto-"pays" too, but the
+            // couple must stay able to upgrade away from it, so a paid *free* plan
+            // is not a lock.
+            if ($current
+                && $current->status === SubscriptionStatus::Paid
+                && ! ($current->package?->isFree() ?? false)) {
+                return $current;
+            }
 
-        // Free plans need no payment — activate (paid) on selection. Paid plans
-        // start pending and await the couple's payment + admin confirmation.
-        $isFree = $package->isFree();
+            // Re-selecting the plan they already hold is a no-op.
+            if ($current
+                && $current->status === SubscriptionStatus::Paid
+                && $current->package_id === $package->id) {
+                return $current;
+            }
 
-        $subscription = $current ?? new Subscription(['wedding_id' => $wedding->id]);
-        $subscription->fill([
-            'wedding_id' => $wedding->id,
-            'package_id' => $package->id,
-            'amount' => $package->price ?? 0,
-            'currency' => $package->currency ?? 'USD',
-            'status' => $isFree ? SubscriptionStatus::Paid->value : SubscriptionStatus::Pending->value,
-            'payment_method' => null,
-            'payment_reference' => null,
-            'submitted_at' => null,
-            'paid_at' => $isFree ? now() : null,
-        ]);
-        $subscription->save();
+            // A payment under admin review must be decided before the plan can
+            // change: mutating the row here would wipe the submitted payment
+            // reference and re-point the money at a different package while the
+            // admin may be confirming it.
+            abort_if(
+                $current?->status === SubscriptionStatus::Submitted,
+                422,
+                'Your payment is awaiting confirmation. It must be reviewed before you can change plans.',
+            );
 
-        $wedding->forceFill(['package_id' => $package->id])->save();
+            // Free plans need no payment — activate (paid) on selection. Paid plans
+            // start pending and await the couple's payment + admin confirmation.
+            $isFree = $package->isFree();
 
-        return $subscription->load('package');
+            // Only a still-unpaid draft (pending) is reused. A paid free plan
+            // stays as its own row so the couple keeps their Free access while
+            // the upgrade awaits payment; rejected rows are kept as the admin's
+            // audit trail of the decision.
+            $subscription = $current?->status === SubscriptionStatus::Pending
+                ? $current
+                : new Subscription;
+            $subscription->fill([
+                'wedding_id' => $wedding->id,
+                'package_id' => $package->id,
+                'amount' => $package->price ?? 0,
+                'currency' => $package->currency ?? 'USD',
+                'status' => $isFree ? SubscriptionStatus::Paid->value : SubscriptionStatus::Pending->value,
+                'payment_method' => null,
+                'payment_reference' => null,
+                'submitted_at' => null,
+                'paid_at' => $isFree ? now() : null,
+            ]);
+            $subscription->save();
+
+            $wedding->forceFill(['package_id' => $package->id])->save();
+
+            return $subscription->load('package');
+        });
     }
 
     /**
@@ -74,33 +107,64 @@ class SubscriptionService
      */
     public function submitPayment(Wedding $wedding, array $data): Subscription
     {
-        $subscription = $this->current($wedding);
+        return DB::transaction(function () use ($wedding, $data) {
+            $subscription = $wedding->subscriptions()
+                ->latest('id')
+                ->lockForUpdate()
+                ->first();
 
-        abort_if($subscription === null, 422, 'Select a package before submitting payment.');
-        abort_if($subscription->status === SubscriptionStatus::Paid, 422, 'This plan is already paid.');
+            abort_if($subscription === null, 422, 'Select a package before submitting payment.');
+            abort_if($subscription->status === SubscriptionStatus::Paid, 422, 'This plan is already paid.');
 
-        $subscription->fill([
-            'status' => SubscriptionStatus::Submitted->value,
-            'payment_method' => $data['payment_method'],
-            'payment_reference' => $data['payment_reference'],
-            'submitted_at' => now(),
-        ]);
-        $subscription->save();
+            $subscription->fill([
+                'status' => SubscriptionStatus::Submitted->value,
+                'payment_method' => $data['payment_method'],
+                'payment_reference' => $data['payment_reference'],
+                'submitted_at' => now(),
+            ]);
+            $subscription->save();
 
-        return $subscription->load('package');
+            return $subscription->load('package');
+        });
     }
 
     /**
-     * Admin decision on a submitted payment: confirm (paid) or reject.
+     * Admin decision on a submitted payment: confirm (paid) or reject. Only a
+     * SUBMITTED payment can be confirmed; only a submitted or (mis-clicked)
+     * paid one can be rejected — so a stale admin screen can never activate a
+     * plan the couple has since swapped, or one nobody claimed to pay for.
      */
     public function confirm(Subscription $subscription, bool $paid): Subscription
     {
-        $subscription->fill($paid
-            ? ['status' => SubscriptionStatus::Paid->value, 'paid_at' => now()]
-            : ['status' => SubscriptionStatus::Rejected->value, 'paid_at' => null]);
-        $subscription->save();
+        return DB::transaction(function () use ($subscription, $paid) {
+            /** @var Subscription $subscription */
+            $subscription = Subscription::query()
+                ->whereKey($subscription->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return $subscription->load(['package', 'wedding.createdBy']);
+            if ($paid) {
+                abort_unless(
+                    $subscription->status === SubscriptionStatus::Submitted,
+                    422,
+                    "Only a submitted payment can be confirmed (this one is {$subscription->status->value}). Refresh and try again.",
+                );
+
+                $subscription->fill(['status' => SubscriptionStatus::Paid->value, 'paid_at' => now()]);
+            } else {
+                abort_unless(
+                    in_array($subscription->status, [SubscriptionStatus::Submitted, SubscriptionStatus::Paid], true),
+                    422,
+                    "Only a submitted or paid subscription can be rejected (this one is {$subscription->status->value}).",
+                );
+
+                $subscription->fill(['status' => SubscriptionStatus::Rejected->value, 'paid_at' => null]);
+            }
+
+            $subscription->save();
+
+            return $subscription->load(['package', 'wedding.createdBy']);
+        });
     }
 
     /**

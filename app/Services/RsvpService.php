@@ -8,6 +8,7 @@ use App\Models\RsvpResponse;
 use App\Models\Wedding;
 use App\Repositories\RsvpRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class RsvpService
 {
@@ -53,6 +54,27 @@ class RsvpService
      * @param  array{guest_name: string, phone?: string|null, number_of_guests: int, message?: string|null, status: string}  $attributes
      */
     public function submitPublic(Invitation $invitation, array $attributes): RsvpResponse
+    {
+        return DB::transaction(function () use ($invitation, $attributes) {
+            // Serialize concurrent submissions from the same invitee (double
+            // click, network retry): the find-then-create below would otherwise
+            // record two RSVPs and double-count the headcount. The lock is
+            // transaction-scoped (auto-released) and keyed on the invitation +
+            // the identity we dedupe on (phone when given, else name).
+            $identity = mb_strtolower(trim(($attributes['phone'] ?? null) ?: $attributes['guest_name']));
+            DB::select('select pg_advisory_xact_lock(?, ?)', [
+                $invitation->id,
+                (int) hexdec(substr(md5($identity), 0, 7)),
+            ]);
+
+            return $this->recordPublic($invitation, $attributes);
+        });
+    }
+
+    /**
+     * @param  array{guest_name: string, phone?: string|null, number_of_guests: int, message?: string|null, status: string}  $attributes
+     */
+    private function recordPublic(Invitation $invitation, array $attributes): RsvpResponse
     {
         /** @var Wedding $wedding */
         $wedding = $invitation->wedding;
