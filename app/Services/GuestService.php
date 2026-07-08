@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Guest;
 use App\Models\Wedding;
 use App\Repositories\GuestRepository;
+use App\Support\Csv;
 use App\Support\PlanCapabilities;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -268,7 +269,7 @@ class GuestService
         fputcsv($handle, self::EXPORT_COLUMNS);
 
         foreach ($guests as $guest) {
-            fputcsv($handle, [
+            fputcsv($handle, Csv::row([
                 $guest->name,
                 $guest->phone,
                 $guest->email,
@@ -278,7 +279,7 @@ class GuestService
                 $guest->seating?->seat_number,
                 $guest->is_vip ? 'yes' : 'no',
                 $guest->note,
-            ]);
+            ]));
         }
 
         rewind($handle);

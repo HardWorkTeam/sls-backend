@@ -6,6 +6,7 @@ use App\Models\Wedding;
 use App\Models\WeddingTable;
 use App\Repositories\GuestRepository;
 use App\Repositories\SeatingRepository;
+use App\Support\Csv;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -179,13 +180,13 @@ class SeatingService
                 ->filter()
                 ->implode('; ');
 
-            fputcsv($handle, [
+            fputcsv($handle, Csv::row([
                 $table->table_name,
                 $table->table_number,
                 $table->capacity,
                 $table->seatings->count(),
                 $guestNames,
-            ]);
+            ]));
         }
 
         rewind($handle);

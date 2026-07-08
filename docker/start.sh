@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -e
 
+# Fail closed: a production container must never run with debug mode on, or an
+# unhandled exception renders Laravel's error page and leaks every secret in the
+# environment to the browser. Refuse to boot instead of leaking.
+if [ "${APP_ENV}" = "production" ] && [ "${APP_DEBUG}" = "true" ]; then
+  echo "FATAL: APP_DEBUG=true with APP_ENV=production. Set APP_DEBUG=false in the environment before deploying." >&2
+  exit 1
+fi
+
 # Render provides $PORT; Apache must listen on it (default 80 locally).
 PORT="${PORT:-80}"
 sed -ri "s/^Listen 80\$/Listen ${PORT}/" /etc/apache2/ports.conf
