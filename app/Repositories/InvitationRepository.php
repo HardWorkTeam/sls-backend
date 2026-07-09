@@ -47,15 +47,18 @@ class InvitationRepository extends EloquentRepository
                 'wedding.albums.mediaItems' => fn ($q) => $q->where('is_public', true),
             ]);
 
+        // A cancelled wedding always takes its pages (public and preview) down.
+        $query->whereHas('wedding', fn ($wedding) => $wedding
+            ->where('status', '!=', WeddingStatus::Cancelled->value));
+
         if ($publishedOnly) {
-            // A cancelled wedding takes its public pages down: guests must not
-            // be able to view (or RSVP to) an invitation for an event that is
-            // no longer happening, even though the invitation row itself still
-            // says "published" (so reactivating the wedding restores it).
+            // A public guest page only ever serves PUBLISHED invitations for weddings
+            // that are live (Published) or finished (Completed). Draft weddings/invitations
+            // are kept private.
             $query
                 ->where('status', InvitationStatus::Published->value)
                 ->whereHas('wedding', fn ($wedding) => $wedding
-                    ->where('status', '!=', WeddingStatus::Cancelled->value));
+                    ->whereIn('status', [WeddingStatus::Published->value, WeddingStatus::Completed->value]));
         }
 
         return $query->first();
