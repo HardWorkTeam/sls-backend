@@ -25,6 +25,16 @@ class PublicInvitationController extends Controller
 
     public function show(string $code): JsonResponse
     {
+        // Support viewing draft/unpublished invitations if a valid preview token is provided.
+        // This is used by the invitation editor's live preview frame.
+        $previewToken = request()->query('preview_token');
+        if ($previewToken && is_string($previewToken) && hash_equals(hash_hmac('sha256', $code, (string) config('app.key')), $previewToken)) {
+            $invitation = $this->invitationService->findByCode($code);
+            abort_unless((bool) $invitation, 404, 'Invitation not found.');
+            $data = PublicInvitationResource::make($invitation)->resolve();
+            return response()->json(['data' => $data]);
+        }
+
         // Cache the serialized payload, not the Eloquent model: every guest hit
         // otherwise re-runs a 4-table join (wedding + timeline + albums + media)
         // against Postgres. Unknown codes are intentionally NOT cached so random

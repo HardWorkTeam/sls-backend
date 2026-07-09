@@ -159,7 +159,14 @@ class InvitationService
     {
         $base = rtrim(config('services.rsvp.url', 'http://localhost:3002'), '/');
 
-        return "{$base}/invite/{$invitation->invitation_code}";
+        $url = "{$base}/invite/{$invitation->invitation_code}";
+
+        if ($invitation->status !== InvitationStatus::Published->value) {
+            $token = hash_hmac('sha256', $invitation->invitation_code, (string) config('app.key'));
+            $url .= "?preview_token={$token}";
+        }
+
+        return $url;
     }
 
     /**
