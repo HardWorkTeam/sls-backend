@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Enums\InvitationStatus;
+use App\Enums\WeddingStatus;
 use App\Models\Invitation;
 use App\Models\Wedding;
 use Illuminate\Database\Eloquent\Collection;
@@ -47,7 +48,14 @@ class InvitationRepository extends EloquentRepository
             ]);
 
         if ($publishedOnly) {
-            $query->where('status', InvitationStatus::Published->value);
+            // A cancelled wedding takes its public pages down: guests must not
+            // be able to view (or RSVP to) an invitation for an event that is
+            // no longer happening, even though the invitation row itself still
+            // says "published" (so reactivating the wedding restores it).
+            $query
+                ->where('status', InvitationStatus::Published->value)
+                ->whereHas('wedding', fn ($wedding) => $wedding
+                    ->where('status', '!=', WeddingStatus::Cancelled->value));
         }
 
         return $query->first();

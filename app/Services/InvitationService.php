@@ -38,6 +38,19 @@ class InvitationService
     }
 
     /**
+     * Drop every cached public payload for a wedding's invitations. Used when
+     * the WEDDING's visibility changes as a whole (cancelled / reactivated) so
+     * guests don't keep seeing a cached page for up to the TTL.
+     */
+    public function forgetWeddingPublicCaches(Wedding $wedding): void
+    {
+        foreach ($wedding->invitations()->pluck('invitation_code') as $code) {
+            Cache::forget(self::publicCacheKey((string) $code));
+            $this->pingRsvpRevalidate((string) $code);
+        }
+    }
+
+    /**
      * Best-effort: tell the RSVP site to drop its Next.js Data Cache entry for
      * this code so edits appear immediately rather than after the TTL. Disabled
      * when no secret is configured; failures are swallowed (the TTL is the

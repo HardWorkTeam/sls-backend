@@ -16,11 +16,24 @@ use Illuminate\Validation\ValidationException;
 
 class WeddingService
 {
+    /**
+     * Allowed status transitions (mirrors the buttons the portals offer):
+     * draft can go live or be called off; a live wedding can finish or be
+     * called off; completed and cancelled weddings can be reactivated.
+     */
+    private const STATUS_TRANSITIONS = [
+        WeddingStatus::Draft->value => [WeddingStatus::Published, WeddingStatus::Cancelled],
+        WeddingStatus::Published->value => [WeddingStatus::Completed, WeddingStatus::Cancelled],
+        WeddingStatus::Completed->value => [WeddingStatus::Published],
+        WeddingStatus::Cancelled->value => [WeddingStatus::Published],
+    ];
+
     public function __construct(
         private readonly WeddingRepository $weddings,
         private readonly RsvpRepository $rsvps,
         private readonly GiftRepository $gifts,
         private readonly UserService $users,
+        private readonly InvitationService $invitationService,
     ) {}
 
     public function list(User $user, ?string $search, ?string $status, int $perPage = 15): LengthAwarePaginator
@@ -60,19 +73,46 @@ class WeddingService
 
     public function changeStatus(Wedding $wedding, WeddingStatus $status): Wedding
     {
+        $current = (string) $wedding->status;
+
+        // Idempotent: re-applying the current status is a no-op, not an error
+        // (double-clicked button, stale screen).
+        if ($current === $status->value) {
+            return $wedding;
+        }
+
+        abort_unless(
+            in_array($status, self::STATUS_TRANSITIONS[$current] ?? [], true),
+            422,
+            "A {$current} wedding cannot be marked {$status->value}.",
+        );
+
         $timestamps = [
             WeddingStatus::Published->value => 'published_at',
             WeddingStatus::Completed->value => 'completed_at',
             WeddingStatus::Cancelled->value => 'cancelled_at',
         ];
 
-        $attributes = ['status' => $status->value];
+        $attributes = [
+            'status' => $status->value,
+            $timestamps[$status->value] => now(),
+        ];
 
-        if (isset($timestamps[$status->value])) {
-            $attributes[$timestamps[$status->value]] = now();
+        // Reactivating clears the terminal timestamps — the wedding is live
+        // again, so it is no longer "completed at" or "cancelled at" anything.
+        if ($status === WeddingStatus::Published) {
+            $attributes['completed_at'] = null;
+            $attributes['cancelled_at'] = null;
         }
 
         $this->weddings->update($wedding, $attributes);
+
+        // Cancelling hides the wedding's public invitation pages (and
+        // reactivating restores them) — drop their cached payloads so the
+        // change is immediate instead of waiting out the cache TTL.
+        if ($status === WeddingStatus::Cancelled || $current === WeddingStatus::Cancelled->value) {
+            $this->invitationService->forgetWeddingPublicCaches($wedding);
+        }
 
         return $wedding;
     }
