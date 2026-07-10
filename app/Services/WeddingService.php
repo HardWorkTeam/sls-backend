@@ -63,6 +63,8 @@ class WeddingService
     {
         $this->weddings->update($wedding, $attributes);
 
+        $this->invitationService->forgetWeddingPublicCaches($wedding);
+
         return $wedding->load(['package', 'createdBy']);
     }
 

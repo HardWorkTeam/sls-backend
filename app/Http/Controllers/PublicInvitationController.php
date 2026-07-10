@@ -50,7 +50,12 @@ class PublicInvitationController extends Controller
 
             abort_unless((bool) $invitation, 404, 'Invitation not found.');
 
-            $data = PublicInvitationResource::make($invitation)->resolve();
+            // Encode through JSON so nested Resource objects (InvitationTemplateResource,
+            // TimelineEventResource, AlbumResource) are fully resolved to plain
+            // scalars/arrays before being stored. Storing un-resolved Resource instances
+            // causes __PHP_Incomplete_Class errors on retrieval.
+            $resolved = PublicInvitationResource::make($invitation)->resolve();
+            $data = json_decode(json_encode($resolved), true);
             Cache::put($key, $data, self::CACHE_TTL);
         }
 
