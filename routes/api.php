@@ -132,6 +132,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/invitations/{invitation}', [InvitationController::class, 'update']);
         Route::delete('/invitations/{invitation}', [InvitationController::class, 'destroy']);
         Route::post('/invitations/{invitation}/publish', [InvitationController::class, 'publish']);
+        Route::post('/invitations/{invitation}/unpublish', [InvitationController::class, 'unpublish']);
         Route::get('/invitations/{invitation}/qr', [InvitationController::class, 'qrCode']);
 
         Route::get('/guest-groups', [GuestGroupController::class, 'index']);

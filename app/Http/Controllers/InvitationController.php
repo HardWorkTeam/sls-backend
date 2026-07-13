@@ -61,6 +61,13 @@ class InvitationController extends Controller
         return InvitationResource::make($this->invitationService->publish($invitation));
     }
 
+    public function unpublish(Wedding $wedding, Invitation $invitation): InvitationResource
+    {
+        $this->ensureBelongsToWedding($wedding, $invitation);
+
+        return InvitationResource::make($this->invitationService->unpublish($invitation));
+    }
+
     public function qrCode(Wedding $wedding, Invitation $invitation): Response
     {
         $this->ensureBelongsToWedding($wedding, $invitation);

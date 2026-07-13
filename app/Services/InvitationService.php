@@ -155,6 +155,18 @@ class InvitationService
         return $invitation;
     }
 
+    public function unpublish(Invitation $invitation): Invitation
+    {
+        $this->invitations->update($invitation, [
+            'status' => InvitationStatus::Draft->value,
+            'published_at' => null,
+        ]);
+
+        $this->forgetPublicCache($invitation);
+
+        return $invitation;
+    }
+
     public function publicUrl(Invitation $invitation): string
     {
         $base = rtrim(config('services.rsvp.url', 'http://localhost:3002'), '/');
