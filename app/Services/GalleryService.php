@@ -118,10 +118,14 @@ class GalleryService
 
     public function upload(Wedding $wedding, User $user, UploadedFile $file, ?int $albumId, bool $isPublic): MediaItem
     {
-        $isVideo = str_starts_with((string) $file->getMimeType(), 'video/');
+        $mime = (string) $file->getMimeType();
+        $isVideo = str_starts_with($mime, 'video/');
+        $isImage = str_starts_with($mime, 'image/');
+        $mediaType = $isVideo ? MediaType::Video->value : ($isImage ? MediaType::Photo->value : MediaType::Document->value);
 
         if ($this->isCloudinary()) {
-            $path = $this->cloudinaryUpload($file, "weddings/{$wedding->id}/gallery", $isVideo ? 'video' : 'image');
+            $resourceType = $isVideo ? 'video' : ($isImage ? 'image' : 'raw');
+            $path = $this->cloudinaryUpload($file, "weddings/{$wedding->id}/gallery", $resourceType);
         } else {
             $path = Storage::disk($this->mediaDisk())->putFile(
                 "weddings/{$wedding->id}/gallery",
@@ -139,7 +143,7 @@ class GalleryService
             'wedding_id' => $wedding->id,
             'album_id' => $albumId,
             'uploaded_by_user_id' => $user->id,
-            'media_type' => $isVideo ? MediaType::Video->value : MediaType::Photo->value,
+            'media_type' => $mediaType,
             'storage_path' => $path,
             'original_name' => $file->getClientOriginalName(),
             'mime_type' => $file->getMimeType(),
@@ -158,7 +162,7 @@ class GalleryService
     public function deleteMedia(MediaItem $mediaItem): void
     {
         if ($this->isCloudinary()) {
-            $resourceType = $mediaItem->media_type === 'video' ? 'video' : 'image';
+            $resourceType = $mediaItem->media_type === 'video' ? 'video' : ($mediaItem->media_type === 'photo' ? 'image' : 'raw');
             $this->cloudinaryDestroy($mediaItem->storage_path, $resourceType);
             if ($mediaItem->thumbnail_path) {
                 $this->cloudinaryDestroy($mediaItem->thumbnail_path);

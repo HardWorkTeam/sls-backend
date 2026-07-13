@@ -23,7 +23,6 @@ class UploadMediaRequest extends FormRequest
             'file' => [
                 'required',
                 'file',
-                'mimetypes:image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm',
                 'max:51200',
             ],
             'album_id' => [

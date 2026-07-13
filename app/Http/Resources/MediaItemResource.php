@@ -26,7 +26,7 @@ class MediaItemResource extends JsonResource
 
     public function toArray(Request $request): array
     {
-        $resourceType = $this->media_type === 'video' ? 'video' : 'image';
+        $resourceType = $this->media_type === 'video' ? 'video' : ($this->media_type === 'photo' ? 'image' : 'raw');
 
         return [
             'id' => $this->id,

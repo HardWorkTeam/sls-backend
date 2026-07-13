@@ -6,6 +6,7 @@ enum MediaType: string
 {
     case Photo = 'photo';
     case Video = 'video';
+    case Document = 'document';
 
     /**
      * @return list<string>
