@@ -27,6 +27,7 @@ class StoreGiftRequest extends FormRequest
             ],
             'gift_type' => ['required', Rule::enum(GiftType::class)],
             'amount' => ['nullable', 'numeric', 'min:0', 'required_unless:gift_type,item'],
+            'currency' => ['required', 'string', 'in:USD,KHR'],
             'item_name' => ['nullable', 'string', 'max:255', 'required_if:gift_type,item'],
             'note' => ['nullable', 'string', 'max:2000'],
             'received_at' => ['nullable', 'date'],

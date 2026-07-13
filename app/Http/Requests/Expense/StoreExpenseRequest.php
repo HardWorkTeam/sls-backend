@@ -22,6 +22,7 @@ class StoreExpenseRequest extends FormRequest
             'item_name' => ['required', 'string', 'max:255'],
             'vendor' => ['nullable', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0'],
+            'currency' => ['required', 'string', 'in:USD,KHR'],
             'paid_amount' => ['nullable', 'numeric', 'min:0', 'lte:amount'],
             'status' => ['nullable', Rule::enum(ExpenseStatus::class)],
             'note' => ['nullable', 'string', 'max:2000'],

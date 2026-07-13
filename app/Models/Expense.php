@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'item_name',
     'vendor',
     'amount',
+    'currency',
     'paid_amount',
     'status',
     'note',

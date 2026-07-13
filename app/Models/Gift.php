@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'guest_id',
     'gift_type',
     'amount',
+    'currency',
     'item_name',
     'note',
     'received_at',

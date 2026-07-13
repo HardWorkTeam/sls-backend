@@ -22,6 +22,7 @@ class UpdateExpenseRequest extends FormRequest
             'item_name' => ['sometimes', 'string', 'max:255'],
             'vendor' => ['sometimes', 'nullable', 'string', 'max:255'],
             'amount' => ['sometimes', 'numeric', 'min:0'],
+            'currency' => ['sometimes', 'string', 'in:USD,KHR'],
             'paid_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'status' => ['sometimes', Rule::enum(ExpenseStatus::class)],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],

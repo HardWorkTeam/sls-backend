@@ -35,27 +35,34 @@ class ExpenseRepository extends EloquentRepository
     {
         $rows = $this->query()
             ->where('wedding_id', $wedding->id)
-            ->selectRaw('status, count(*) as total, coalesce(sum(amount), 0) as amount, coalesce(sum(paid_amount), 0) as paid')
-            ->groupBy('status')
+            ->selectRaw('status, currency, count(*) as total, coalesce(sum(amount), 0) as amount, coalesce(sum(paid_amount), 0) as paid')
+            ->groupBy('status', 'currency')
             ->get();
 
         $byStatus = [];
         foreach (ExpenseStatus::cases() as $status) {
-            $row = $rows->firstWhere('status', $status->value);
+            $statusRows = $rows->where('status', $status->value);
             $byStatus[$status->value] = [
-                'count' => (int) ($row->total ?? 0),
-                'amount' => (float) ($row->amount ?? 0),
+                'count' => (int) $statusRows->sum('total'),
+                'amount_usd' => (float) $statusRows->where('currency', 'USD')->sum('amount'),
+                'amount_khr' => (float) $statusRows->where('currency', 'KHR')->sum('amount'),
             ];
         }
 
-        $totalAmount = (float) $rows->sum('amount');
-        $totalPaid = (float) $rows->sum('paid');
+        $totalAmountUsd = (float) $rows->where('currency', 'USD')->sum('amount');
+        $totalPaidUsd = (float) $rows->where('currency', 'USD')->sum('paid');
+
+        $totalAmountKhr = (float) $rows->where('currency', 'KHR')->sum('amount');
+        $totalPaidKhr = (float) $rows->where('currency', 'KHR')->sum('paid');
 
         return [
             'total_expenses' => (int) $rows->sum('total'),
-            'total_amount' => $totalAmount,
-            'total_paid' => $totalPaid,
-            'total_outstanding' => round($totalAmount - $totalPaid, 2),
+            'total_amount_usd' => $totalAmountUsd,
+            'total_paid_usd' => $totalPaidUsd,
+            'total_outstanding_usd' => round($totalAmountUsd - $totalPaidUsd, 2),
+            'total_amount_khr' => $totalAmountKhr,
+            'total_paid_khr' => $totalPaidKhr,
+            'total_outstanding_khr' => round($totalAmountKhr - $totalPaidKhr, 2),
             'by_status' => $byStatus,
         ];
     }

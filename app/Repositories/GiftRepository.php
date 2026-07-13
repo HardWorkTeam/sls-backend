@@ -35,23 +35,29 @@ class GiftRepository extends EloquentRepository
     {
         $rows = $this->query()
             ->where('wedding_id', $wedding->id)
-            ->selectRaw('gift_type, count(*) as total, coalesce(sum(amount), 0) as amount')
-            ->groupBy('gift_type')
+            ->selectRaw('gift_type, currency, count(*) as total, coalesce(sum(amount), 0) as amount')
+            ->groupBy('gift_type', 'currency')
             ->get();
 
         $byType = [];
         foreach (GiftType::cases() as $type) {
-            $row = $rows->firstWhere('gift_type', $type->value);
+            $typeRows = $rows->where('gift_type', $type->value);
             $byType[$type->value] = [
-                'count' => (int) ($row->total ?? 0),
-                'amount' => (float) ($row->amount ?? 0),
+                'count' => (int) $typeRows->sum('total'),
+                'amount_usd' => (float) $typeRows->where('currency', 'USD')->sum('amount'),
+                'amount_khr' => (float) $typeRows->where('currency', 'KHR')->sum('amount'),
             ];
         }
 
         return [
             'total_gifts' => (int) $rows->sum('total'),
-            'total_cash_amount' => (float) $rows
+            'total_cash_amount_usd' => (float) $rows
                 ->whereIn('gift_type', [GiftType::Cash->value, GiftType::BankTransfer->value])
+                ->where('currency', 'USD')
+                ->sum('amount'),
+            'total_cash_amount_khr' => (float) $rows
+                ->whereIn('gift_type', [GiftType::Cash->value, GiftType::BankTransfer->value])
+                ->where('currency', 'KHR')
                 ->sum('amount'),
             'by_type' => $byType,
         ];

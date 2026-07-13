@@ -28,6 +28,7 @@ class UpdateGiftRequest extends FormRequest
             ],
             'gift_type' => ['sometimes', Rule::enum(GiftType::class)],
             'amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
+            'currency' => ['sometimes', 'string', 'in:USD,KHR'],
             'item_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'note' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'received_at' => ['sometimes', 'nullable', 'date'],
