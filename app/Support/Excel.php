@@ -89,7 +89,11 @@ class Excel
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['argb' => 'FFD5D5D5'],
+                        'color' => ['argb' => 'FF999999'],
+                    ],
+                    'outline' => [
+                        'borderStyle' => Border::BORDER_MEDIUM,
+                        'color' => ['argb' => 'FF333333'],
                     ],
                 ],
             ]);
