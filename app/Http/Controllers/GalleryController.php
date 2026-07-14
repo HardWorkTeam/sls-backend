@@ -66,7 +66,7 @@ class GalleryController extends Controller
             $request->user(),
             $request->file('file'),
             $request->validated('album_id') !== null ? (int) $request->validated('album_id') : null,
-            $request->boolean('is_public'),
+            $request->has('is_public') ? $request->boolean('is_public') : null,
         );
 
         return MediaItemResource::make($mediaItem)->response()->setStatusCode(201);

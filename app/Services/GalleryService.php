@@ -116,7 +116,7 @@ class GalleryService
         ])->throw();
     }
 
-    public function upload(Wedding $wedding, User $user, UploadedFile $file, ?int $albumId, bool $isPublic): MediaItem
+    public function upload(Wedding $wedding, User $user, UploadedFile $file, ?int $albumId, ?bool $isPublic = null): MediaItem
     {
         $mime = (string) $file->getMimeType();
         $clientMime = (string) $file->getClientMimeType();
@@ -159,9 +159,20 @@ class GalleryService
             );
         }
 
-        // Inherit is_public from the album when the caller hasn't explicitly set it.
-        if (! $isPublic && $albumId) {
-            $isPublic = (bool) Album::find($albumId)?->is_public;
+        // If no album is specified, auto-assign to a default public "General Gallery" album
+        if (! $albumId) {
+            /** @var Album $defaultAlbum */
+            $defaultAlbum = Album::firstOrCreate(
+                ['wedding_id' => $wedding->id, 'name' => 'General Gallery'],
+                ['description' => 'Default wedding gallery photos', 'is_public' => true]
+            );
+            $albumId = $defaultAlbum->id;
+        }
+
+        // Default is_public to album's visibility or true when not explicitly passed
+        if ($isPublic === null) {
+            $album = Album::find($albumId);
+            $isPublic = $album ? (bool) $album->is_public : true;
         }
 
         return MediaItem::create([
