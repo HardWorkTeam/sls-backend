@@ -14,6 +14,16 @@ PORT="${PORT:-80}"
 sed -ri "s/^Listen 80\$/Listen ${PORT}/" /etc/apache2/ports.conf
 sed -ri "s/<VirtualHost \*:80>/<VirtualHost *:${PORT}>/" /etc/apache2/sites-available/000-default.conf
 
+# Set PHP upload limit overrides for containerized environments
+if [ -d "/usr/local/etc/php/conf.d" ]; then
+  cat <<'EOF' > /usr/local/etc/php/conf.d/uploads.ini
+upload_max_filesize = 64M
+post_max_size = 64M
+memory_limit = 256M
+max_execution_time = 120
+EOF
+fi
+
 # Generate an APP_KEY at runtime only if one wasn't supplied via env.
 if [ -z "${APP_KEY}" ]; then
   echo "WARNING: APP_KEY not set — generating an ephemeral key. Set APP_KEY in Render for stable sessions/encryption."
