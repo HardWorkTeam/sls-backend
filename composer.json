@@ -12,6 +12,7 @@
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "3.0",
+        "phpoffice/phpspreadsheet": "^5.9",
         "symfony/brevo-mailer": "^8.1",
         "symfony/http-client": "^8.1"
     },

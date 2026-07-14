@@ -6,6 +6,7 @@ use App\Models\Guest;
 use App\Models\Wedding;
 use App\Repositories\GuestRepository;
 use App\Support\Csv;
+use App\Support\Excel;
 use App\Support\PlanCapabilities;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
 use BaconQrCode\Renderer\ImageRenderer;
@@ -271,21 +272,17 @@ class GuestService
     }
 
     /**
-     * Export the wedding's guests as CSV (opens directly in Excel).
+     * Export the wedding's guests as a formatted Excel (.xlsx) file.
      *
      * @param  array{search?: string|null, guest_group_id?: int|null, is_vip?: bool|null}  $filters
      */
-    public function exportCsv(Wedding $wedding, array $filters = []): string
+    public function exportExcel(Wedding $wedding, array $filters = []): string
     {
         $guests = $this->guests->allForWedding($wedding, $filters);
 
-        $handle = fopen('php://temp', 'r+b');
-        // BOM so Excel detects UTF-8 (Khmer names, accents, etc.).
-        fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, self::EXPORT_COLUMNS);
-
+        $rows = [];
         foreach ($guests as $guest) {
-            fputcsv($handle, Csv::row([
+            $rows[] = [
                 $guest->name,
                 $guest->phone,
                 $guest->email,
@@ -293,15 +290,15 @@ class GuestService
                 $guest->group?->name,
                 $guest->seating?->table?->table_number,
                 $guest->seating?->seat_number,
-                $guest->is_vip ? 'yes' : 'no',
+                $guest->is_vip ? 'Yes' : 'No',
                 $guest->note,
-            ]));
+            ];
         }
 
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
-
-        return $csv === false ? '' : $csv;
+        return Excel::build(
+            ['Name', 'Phone', 'Email', 'Address', 'Group', 'Table Number', 'Seat Number', 'VIP', 'Note'],
+            $rows,
+            'Guests',
+        );
     }
 }

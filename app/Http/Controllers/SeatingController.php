@@ -95,11 +95,11 @@ class SeatingController extends Controller
 
     public function export(Wedding $wedding): Response
     {
-        $csv = $this->seatingService->exportCsv($wedding);
+        $xlsx = $this->seatingService->exportExcel($wedding);
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"seating-{$wedding->wedding_code}.csv\"",
+        return response($xlsx, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"seating-{$wedding->wedding_code}.xlsx\"",
         ]);
     }
 }

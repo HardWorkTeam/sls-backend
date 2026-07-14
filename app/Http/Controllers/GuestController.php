@@ -70,14 +70,14 @@ class GuestController extends Controller
 
     public function export(Request $request, Wedding $wedding): Response
     {
-        $csv = $this->guestService->exportCsv($wedding, [
+        $xlsx = $this->guestService->exportExcel($wedding, [
             'search' => $request->query('search'),
             'guest_group_id' => $request->query('guest_group_id'),
         ]);
 
-        return response($csv, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"guests-{$wedding->wedding_code}.csv\"",
+        return response($xlsx, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => "attachment; filename=\"guests-{$wedding->wedding_code}.xlsx\"",
         ]);
     }
 

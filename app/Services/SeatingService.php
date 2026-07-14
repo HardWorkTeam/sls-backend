@@ -7,6 +7,7 @@ use App\Models\WeddingTable;
 use App\Repositories\GuestRepository;
 use App\Repositories\SeatingRepository;
 use App\Support\Csv;
+use App\Support\Excel;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -168,38 +169,34 @@ class SeatingService
     }
 
     /**
-     * Export the wedding's tables as CSV (opens directly in Excel). Each row is
-     * a table with its occupancy and the names of the guests seated there.
+     * Export the wedding's tables as a formatted Excel (.xlsx) file. Each row
+     * is a table with its occupancy and the names of the guests seated there.
      */
-    public function exportCsv(Wedding $wedding): string
+    public function exportExcel(Wedding $wedding): string
     {
         $tables = $this->seating->tablesForWedding($wedding);
 
-        $handle = fopen('php://temp', 'r+b');
-        // BOM so Excel detects UTF-8 (Khmer names, accents, etc.).
-        fwrite($handle, "\xEF\xBB\xBF");
-        fputcsv($handle, self::EXPORT_COLUMNS);
-
+        $rows = [];
         foreach ($tables as $table) {
             $guestNames = $table->seatings
                 ->map(fn ($seating) => $seating->guest?->name)
                 ->filter()
                 ->implode('; ');
 
-            fputcsv($handle, Csv::row([
+            $rows[] = [
                 $table->table_name,
                 $table->table_number,
                 $table->capacity,
                 $table->seatings->count(),
                 $guestNames,
-            ]));
+            ];
         }
 
-        rewind($handle);
-        $csv = stream_get_contents($handle);
-        fclose($handle);
-
-        return $csv === false ? '' : $csv;
+        return Excel::build(
+            ['Table Name', 'Table Number', 'Capacity', 'Seated', 'Guests'],
+            $rows,
+            'Seating',
+        );
     }
 
     /**
