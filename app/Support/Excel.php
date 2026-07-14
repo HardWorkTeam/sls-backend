@@ -5,7 +5,6 @@ namespace App\Support;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -43,12 +42,12 @@ class Excel
         $sheet->getStyle($headerRange)->applyFromArray([
             'font' => [
                 'bold' => true,
-                'color' => new Color(Color::COLOR_WHITE),
+                'color' => ['argb' => 'FFFFFFFF'],
                 'size' => 11,
             ],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => new Color('FF2D6A4F'),
+                'startColor' => ['argb' => 'FF2D6A4F'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
@@ -72,9 +71,12 @@ class Excel
         for ($r = 2; $r <= $lastRow; $r++) {
             $range = "A{$r}:{$lastCol}{$r}";
             if ($r % 2 === 0) {
-                $sheet->getStyle($range)->getFill()
-                    ->setFillType(Fill::FILL_SOLID)
-                    ->getStartColor()->setARGB('FFF0FFF4'); // very light green
+                $sheet->getStyle($range)->applyFromArray([
+                    'fill' => [
+                        'fillType' => Fill::FILL_SOLID,
+                        'startColor' => ['argb' => 'FFF0FFF4'],
+                    ],
+                ]);
             }
             $sheet->getStyle($range)->getAlignment()
                 ->setVertical(Alignment::VERTICAL_CENTER);
@@ -87,7 +89,7 @@ class Excel
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
-                        'color' => new Color('FFD5D5D5'),
+                        'color' => ['argb' => 'FFD5D5D5'],
                     ],
                 ],
             ]);
