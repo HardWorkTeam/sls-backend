@@ -75,9 +75,15 @@ class GuestController extends Controller
             'guest_group_id' => $request->query('guest_group_id'),
         ]);
 
+        $safeName = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $wedding->wedding_name ?? '');
+        $safeName = trim(preg_replace('/\s+/', '_', $safeName));
+        $filename = $safeName
+            ? "guests-{$safeName}-{$wedding->wedding_code}.xlsx"
+            : "guests-{$wedding->wedding_code}.xlsx";
+
         return response($xlsx, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"guests-{$wedding->wedding_code}.xlsx\"",
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 

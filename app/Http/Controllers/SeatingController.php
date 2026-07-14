@@ -97,9 +97,15 @@ class SeatingController extends Controller
     {
         $xlsx = $this->seatingService->exportExcel($wedding);
 
+        $safeName = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $wedding->wedding_name ?? '');
+        $safeName = trim(preg_replace('/\s+/', '_', $safeName));
+        $filename = $safeName
+            ? "seating-{$safeName}-{$wedding->wedding_code}.xlsx"
+            : "seating-{$wedding->wedding_code}.xlsx";
+
         return response($xlsx, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"seating-{$wedding->wedding_code}.xlsx\"",
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
 }
