@@ -119,9 +119,34 @@ class GalleryService
     public function upload(Wedding $wedding, User $user, UploadedFile $file, ?int $albumId, bool $isPublic): MediaItem
     {
         $mime = (string) $file->getMimeType();
-        $isVideo = str_starts_with($mime, 'video/');
-        $isImage = str_starts_with($mime, 'image/');
+        $clientMime = (string) $file->getClientMimeType();
+        $ext = strtolower($file->getClientOriginalExtension());
+
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'heic', 'heif', 'avif', 'tiff'];
+        $videoExtensions = ['mp4', 'mov', 'avi', 'wmv', 'mkv', 'webm', '3gp', 'm4v', 'quicktime', 'ogv'];
+
+        $isImage = str_starts_with($mime, 'image/')
+            || str_starts_with($clientMime, 'image/')
+            || in_array($ext, $imageExtensions, true);
+
+        $isVideo = str_starts_with($mime, 'video/')
+            || str_starts_with($clientMime, 'video/')
+            || in_array($ext, $videoExtensions, true);
+
         $mediaType = $isVideo ? MediaType::Video->value : ($isImage ? MediaType::Photo->value : MediaType::Document->value);
+
+        $resolvedMime = ($mime !== 'application/octet-stream' && $mime !== '')
+            ? $mime
+            : (($clientMime !== '' && $clientMime !== 'application/octet-stream') ? $clientMime : match ($ext) {
+                'heic' => 'image/heic',
+                'heif' => 'image/heif',
+                'jpg', 'jpeg' => 'image/jpeg',
+                'png' => 'image/png',
+                'webp' => 'image/webp',
+                'mov' => 'video/quicktime',
+                'mp4' => 'video/mp4',
+                default => $mime ?: 'application/octet-stream',
+            });
 
         if ($this->isCloudinary()) {
             $resourceType = $isVideo ? 'video' : ($isImage ? 'image' : 'raw');
@@ -146,7 +171,7 @@ class GalleryService
             'media_type' => $mediaType,
             'storage_path' => $path,
             'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
+            'mime_type' => $resolvedMime,
             'size_bytes' => $file->getSize(),
             'is_public' => $isPublic,
         ])->load('album');
