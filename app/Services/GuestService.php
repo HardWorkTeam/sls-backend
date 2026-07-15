@@ -174,30 +174,25 @@ class GuestService
     }
 
     /**
-     * Import guests from a CSV file (Excel-compatible).
+     * Import guests from a CSV or XLSX file.
      * Expected headers: name, phone, email, address, group, is_vip, note.
      *
      * @return array{imported: int, skipped: int, errors: list<string>}
      */
     public function importCsv(Wedding $wedding, UploadedFile $file): array
     {
-        $handle = fopen($file->getRealPath(), 'rb');
+        $parsed = Excel::readRows($file->getRealPath());
 
-        if ($handle === false) {
+        if ($parsed === null) {
             return ['imported' => 0, 'skipped' => 0, 'errors' => ['Unable to read the uploaded file.']];
         }
 
-        $header = fgetcsv($handle);
+        $header = $parsed['header'];
+        $rows = $parsed['rows'];
 
-        if ($header === false) {
-            fclose($handle);
-
-            return ['imported' => 0, 'skipped' => 0, 'errors' => ['The file is empty.']];
+        if (count($rows) === 0) {
+            return ['imported' => 0, 'skipped' => 0, 'errors' => ['The file has no data rows.']];
         }
-
-        // Strip a UTF-8 BOM that Excel prepends to CSV exports.
-        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', (string) $header[0]);
-        $header = array_map(fn ($column) => strtolower(trim((string) $column)), $header);
 
         $groups = $wedding->guestGroups()->pluck('id', 'name');
         $imported = 0;
@@ -210,19 +205,21 @@ class GuestService
         $limit = PlanCapabilities::forWedding($wedding)->guestLimit;
         $remaining = $limit === null ? PHP_INT_MAX : max(0, $limit - $wedding->guests()->count());
 
-        DB::transaction(function () use ($handle, $header, $wedding, $groups, $limit, &$remaining, &$imported, &$skipped, &$errors, &$line) {
-            while (($row = fgetcsv($handle)) !== false) {
+        DB::transaction(function () use ($rows, $header, $wedding, $groups, $limit, &$remaining, &$imported, &$skipped, &$errors, &$line) {
+            foreach ($rows as $row) {
                 $line++;
 
-                if (count($row) === 1 && trim((string) $row[0]) === '') {
+                // Skip entirely blank rows.
+                if (count($row) === 1 && trim((string) ($row[0] ?? '')) === '') {
+                    continue;
+                }
+                if (count(array_filter($row, fn ($cell) => $cell !== null && trim((string) $cell) !== '')) === 0) {
                     continue;
                 }
 
                 // Normalize the row to exactly the header's width — pad short
-                // rows, truncate long ones (stray trailing columns from
-                // hand-edited files). array_combine throws on a length
-                // mismatch, which would 500 the whole import.
-                $cells = array_map(fn ($cell) => trim((string) $cell), $row);
+                // rows, truncate long ones.
+                $cells = array_map(fn ($cell) => trim((string) ($cell ?? '')), $row);
                 $data = array_combine(
                     $header,
                     array_slice(array_pad($cells, count($header), null), 0, count($header)),
@@ -265,8 +262,6 @@ class GuestService
                 $remaining--;
             }
         });
-
-        fclose($handle);
 
         return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
     }

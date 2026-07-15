@@ -17,7 +17,7 @@ class ImportGuestsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx', 'max:10240'],
         ];
     }
 }

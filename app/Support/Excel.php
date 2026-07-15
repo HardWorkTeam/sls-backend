@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -114,6 +115,50 @@ class Excel
         }
 
         return self::toXlsxString($spreadsheet);
+    }
+
+    /**
+     * Read a spreadsheet file (CSV or XLSX) and return the header row and
+     * data rows as plain arrays. Uses PhpSpreadsheet's IOFactory so the
+     * same import logic works regardless of file format.
+     *
+     * @return array{header: list<string>, rows: list<list<string|null>>}|null
+     *         Null when the file cannot be read or is empty.
+     */
+    public static function readRows(string $filePath): ?array
+    {
+        try {
+            $spreadsheet = IOFactory::load($filePath);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $sheet = $spreadsheet->getActiveSheet();
+        $data = $sheet->toArray(null, true, false, false);
+        $spreadsheet->disconnectWorksheets();
+
+        if (count($data) === 0) {
+            return null;
+        }
+
+        // First row is the header.
+        $header = array_map(
+            fn ($col) => strtolower(trim((string) ($col ?? ''))),
+            array_shift($data),
+        );
+
+        // Strip a UTF-8 BOM that some editors/Excel prepend.
+        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
+
+        $rows = array_map(
+            fn (array $row) => array_map(
+                fn ($cell) => $cell !== null ? trim((string) $cell) : null,
+                $row,
+            ),
+            $data,
+        );
+
+        return ['header' => $header, 'rows' => $rows];
     }
 
     /**
