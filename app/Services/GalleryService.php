@@ -11,12 +11,44 @@ use App\Repositories\GalleryRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 
 class GalleryService
 {
     public function __construct(private readonly GalleryRepository $gallery) {}
+
+    /**
+     * Invalidate the public invitation cache for every invitation belonging
+     * to this wedding so gallery changes (uploads, visibility toggles,
+     * deletions) appear on the guest-facing page immediately.
+     */
+    private function revalidateWeddingCaches(Wedding $wedding): void
+    {
+        foreach ($wedding->invitations()->pluck('invitation_code') as $code) {
+            Cache::forget(InvitationService::publicCacheKey((string) $code));
+            $this->pingRsvpRevalidate((string) $code);
+        }
+    }
+
+    private function pingRsvpRevalidate(string $code): void
+    {
+        $secret = config('services.rsvp.revalidate_secret');
+        if (! $secret) {
+            return;
+        }
+
+        $base = rtrim((string) config('services.rsvp.url'), '/');
+
+        try {
+            Http::timeout(2)
+                ->withHeaders(['x-revalidate-secret' => $secret])
+                ->post("{$base}/api/revalidate", ['code' => $code]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
 
     /**
      * @return Collection<int, Album>
@@ -175,7 +207,7 @@ class GalleryService
             $isPublic = $album ? (bool) $album->is_public : true;
         }
 
-        return MediaItem::create([
+        $mediaItem = MediaItem::create([
             'wedding_id' => $wedding->id,
             'album_id' => $albumId,
             'uploaded_by_user_id' => $user->id,
@@ -186,17 +218,25 @@ class GalleryService
             'size_bytes' => $file->getSize(),
             'is_public' => $isPublic,
         ])->load('album');
+
+        $this->revalidateWeddingCaches($wedding);
+
+        return $mediaItem;
     }
 
     public function updateMedia(MediaItem $mediaItem, bool $isPublic): MediaItem
     {
         $mediaItem->update(['is_public' => $isPublic]);
 
+        $this->revalidateWeddingCaches($mediaItem->wedding);
+
         return $mediaItem->fresh(['album']);
     }
 
     public function deleteMedia(MediaItem $mediaItem): void
     {
+        $wedding = $mediaItem->wedding;
+
         if ($this->isCloudinary()) {
             $resourceType = $mediaItem->media_type === 'video' ? 'video' : ($mediaItem->media_type === 'photo' ? 'image' : 'raw');
             $this->cloudinaryDestroy($mediaItem->storage_path, $resourceType);
@@ -211,5 +251,7 @@ class GalleryService
         }
 
         $mediaItem->forceDelete();
+
+        $this->revalidateWeddingCaches($wedding);
     }
 }
