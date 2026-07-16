@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignId('wedding_id')->constrained('weddings')->cascadeOnDelete();
             $table->string('name');
             $table->text('description')->nullable();
-            $table->boolean('is_public')->default(false);
+            $table->boolean('is_public')->default(true);
             $table->timestamps();
             $table->softDeletes();
 
@@ -31,7 +31,7 @@ return new class extends Migration
             $table->string('original_name')->nullable();
             $table->string('mime_type')->nullable();
             $table->unsignedBigInteger('size_bytes')->nullable();
-            $table->boolean('is_public')->default(false);
+            $table->boolean('is_public')->default(true);
             $table->timestamp('taken_at')->nullable();
             $table->timestamps();
             $table->softDeletes();
