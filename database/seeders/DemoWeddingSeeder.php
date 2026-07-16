@@ -105,6 +105,7 @@ class DemoWeddingSeeder extends Seeder
             return [$group['name'] => $wedding->guestGroups()->updateOrCreate(['name' => $group['name']], $group)];
         });
 
+        // 1. Initial 21 guests with realistic details
         $guestRows = [
             ['Lok Oknha Chan Dara', 'Family', '+855 12 999 001', 'dara.chan@example.com', 'Villa 45A, St 310, Boeung Keng Kang, Phnom Penh', 'Father of the Bride', true],
             ['Lok Chumteav Lim Sreymom', 'Family', '+855 12 999 002', 'sreymom.lim@example.com', 'Villa 45A, St 310, Boeung Keng Kang, Phnom Penh', 'Mother of the Bride', true],
@@ -129,6 +130,33 @@ class DemoWeddingSeeder extends Seeder
             ['Nguon Rith', 'Company', '+855 78 888 999', 'rith.nguon@company.com', 'Phnom Penh', 'Groom\'s colleague (QA)', false],
         ];
 
+        // 2. Generate another 140 realistic Cambodian names to cross 160 total guests
+        $familyNames = ['Chan', 'Kim', 'Sok', 'Lim', 'Heng', 'Pich', 'Oun', 'Mao', 'Tan', 'Chea', 'Pen', 'Vong', 'Ngin', 'Lor', 'Touch', 'Sruoch', 'Chhun', 'Hak', 'Keo', 'Seng', 'Oung', 'Khorn', 'Meas', 'Chey', 'Rith', 'Nou', 'Prum', 'Sam', 'Tep', 'Nguon', 'Vann', 'Phan', 'Yim', 'Ung', 'Chau'];
+        $givenNames = ['Sophea', 'Visal', 'Chenda', 'Bopha', 'Rithy', 'Sreyneang', 'Samnang', 'Kunthea', 'Vibol', 'Malis', 'Sothea', 'Chanda', 'Reaksa', 'Sovannarith', 'Sokleap', 'Veronica', 'Dymey', 'Pheakdey', 'Phanaroth', 'Piseth', 'Veasna', 'Vireak', 'Chhaya', 'Phirun', 'Borey', 'Vannak', 'Sophal', 'Narith', 'Serey', 'Vuthy', 'Thyda', 'Chantra', 'Dara', 'Sovan', 'Sokhom', 'Ratha', 'Sreypich', 'Puthy', 'Sarin', 'Sopheap', 'Rotha', 'Chhorn', 'Chou', 'Kosal', 'Montha', 'Noreak', 'Odom', 'Ponlok', 'Rattanak', 'Seyha', 'Sombath', 'Vandy'];
+
+        $existingNames = collect($guestRows)->pluck(0)->toArray();
+        $generatedGuests = [];
+        $targetCount = 160;
+
+        while (count($guestRows) + count($generatedGuests) < $targetCount) {
+            $fName = $familyNames[array_rand($familyNames)];
+            $gName = $givenNames[array_rand($givenNames)];
+            $fullName = $fName . ' ' . $gName;
+            if (!in_array($fullName, $existingNames) && !in_array($fullName, $generatedGuests)) {
+                $generatedGuests[] = $fullName;
+            }
+        }
+
+        $groupNames = ['Family', 'Friends', 'VIP', 'Company'];
+        foreach ($generatedGuests as $i => $name) {
+            $groupName = $groupNames[$i % count($groupNames)];
+            $phone = '+855 ' . rand(10, 99) . ' ' . rand(100, 999) . ' ' . rand(100, 999);
+            $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
+            $isVip = ($groupName === 'VIP');
+            $guestRows[] = [$name, $groupName, $phone, $email, 'Phnom Penh', null, $isVip];
+        }
+
+        // 3. Write guests to DB
         $guests = [];
         foreach ($guestRows as [$name, $groupName, $phone, $email, $address, $note, $isVip]) {
             $guests[$name] = $wedding->guests()->updateOrCreate(
@@ -145,22 +173,56 @@ class DemoWeddingSeeder extends Seeder
             );
         }
 
-        $rsvpRows = [
-            ['Lok Oknha Chan Dara', RsvpStatus::Accepted, 2, 'Looking forward to our family\'s big day!'],
-            ['Mr. Kim Sovann', RsvpStatus::Accepted, 2, 'Can\'t wait to celebrate!'],
-            ['H.E. Keo Puthy', RsvpStatus::Accepted, 4, 'Honored to attend your wedding, blessing the couple.'],
-            ['Rithy Heng', RsvpStatus::Accepted, 1, 'Best man is ready! See you there!'],
-            ['Sreyneang Pich', RsvpStatus::Accepted, 1, 'So excited for you, Sophea! Sending love.'],
-            ['Chenda Sok', RsvpStatus::Accepted, 1, 'Honored to host the stage as MC.'],
-            ['Kunthea Mao', RsvpStatus::Accepted, 2, 'Congratulations to the lovely couple!'],
-            ['Vibol Tan', RsvpStatus::Declined, 1, 'Sorry, I will be abroad on a business trip.'],
-            ['Samnang Oun', RsvpStatus::Maybe, 2, 'Will check schedule and confirm by next week.'],
-            ['Dr. Seng Sarin', RsvpStatus::Accepted, 2, 'Will attend the evening reception.'],
-            ['Malis Chea', RsvpStatus::Accepted, 1, 'Wouldn\'t miss it for the world, coming from Siem Reap!'],
-            ['Chan Chhaya', RsvpStatus::Accepted, 2, 'Happy for you both!'],
+        // 4. Set up RSVP Responses
+        $statuses = [RsvpStatus::Accepted, RsvpStatus::Accepted, RsvpStatus::Accepted, RsvpStatus::Declined, RsvpStatus::Maybe];
+        $messages = [
+            'Looking forward to celebrating with you!',
+            'Wishing you a lifetime of love and happiness!',
+            'Congratulations on your wedding!',
+            'Thank you for the invitation, so happy for you both!',
+            'Honored to be part of your special day.',
+            'Cannot wait to see the beautiful bride!',
+            'Congratulations!',
+            null,
+            null
         ];
 
-        foreach ($rsvpRows as $index => [$guestName, $status, $count, $message]) {
+        $rsvpResponses = [
+            'Lok Oknha Chan Dara' => [RsvpStatus::Accepted, 2, 'Looking forward to our family\'s big day!'],
+            'Mr. Kim Sovann' => [RsvpStatus::Accepted, 2, 'Can\'t wait to celebrate!'],
+            'H.E. Keo Puthy' => [RsvpStatus::Accepted, 4, 'Honored to attend your wedding, blessing the couple.'],
+            'Rithy Heng' => [RsvpStatus::Accepted, 1, 'Best man is ready! See you there!'],
+            'Sreyneang Pich' => [RsvpStatus::Accepted, 1, 'So excited for you, Sophea! Sending love.'],
+            'Chenda Sok' => [RsvpStatus::Accepted, 1, 'Honored to host the stage as MC.'],
+            'Kunthea Mao' => [RsvpStatus::Accepted, 2, 'Congratulations to the lovely couple!'],
+            'Vibol Tan' => [RsvpStatus::Declined, 1, 'Sorry, I will be abroad on a business trip.'],
+            'Samnang Oun' => [RsvpStatus::Maybe, 2, 'Will check schedule and confirm by next week.'],
+            'Dr. Seng Sarin' => [RsvpStatus::Accepted, 2, 'Will attend the evening reception.'],
+            'Malis Chea' => [RsvpStatus::Accepted, 1, 'Wouldn\'t miss it for the world, coming from Siem Reap!'],
+            'Chan Chhaya' => [RsvpStatus::Accepted, 2, 'Happy for you both!'],
+        ];
+
+        // Seed random RSVPs for ~110 total responses
+        $allGuestNames = array_keys($guests);
+        shuffle($allGuestNames);
+
+        foreach ($allGuestNames as $guestName) {
+            if (array_key_exists($guestName, $rsvpResponses)) {
+                continue;
+            }
+            if (count($rsvpResponses) >= 110) {
+                break;
+            }
+            // 85% probability of response
+            if (rand(1, 10) <= 8.5) {
+                $status = $statuses[array_rand($statuses)];
+                $count = ($status === RsvpStatus::Accepted) ? rand(1, 2) : 1;
+                $msg = ($status === RsvpStatus::Declined) ? 'Sorry, I cannot make it due to personal conflicts.' : $messages[array_rand($messages)];
+                $rsvpResponses[$guestName] = [$status, $count, $msg];
+            }
+        }
+
+        foreach ($rsvpResponses as $guestName => [$status, $count, $message]) {
             $guest = $guests[$guestName];
             $wedding->rsvpResponses()->updateOrCreate(
                 ['guest_id' => $guest->id, 'invitation_id' => $invitation->id],
@@ -170,40 +232,52 @@ class DemoWeddingSeeder extends Seeder
                     'number_of_guests' => $count,
                     'message' => $message,
                     'status' => $status->value,
-                    'responded_at' => now()->subDays(12 - $index),
+                    'responded_at' => now()->subDays(rand(1, 15)),
                 ],
             );
         }
 
+        // 5. Create 16 Seating Tables
         $tables = [];
-        foreach ([
-            ['VIP Table', 1, 10],
-            ['Bride Family Table', 2, 10],
-            ['Groom Family Table', 3, 10],
-            ['Friends Table', 4, 10],
-            ['Company Table', 5, 10]
-        ] as [$name, $number, $capacity]) {
-            $tables[$name] = $wedding->tables()->updateOrCreate(
-                ['table_name' => $name],
-                ['table_number' => $number, 'capacity' => $capacity],
+        for ($t = 1; $t <= 16; $t++) {
+            if ($t === 1) {
+                $tableName = 'VIP Table 1';
+                $capacity = 10;
+            } elseif ($t === 2) {
+                $tableName = 'VIP Table 2';
+                $capacity = 10;
+            } elseif ($t <= 6) {
+                $tableName = 'Family Table ' . ($t - 2);
+                $capacity = 10;
+            } elseif ($t <= 11) {
+                $tableName = 'Friends Table ' . ($t - 6);
+                $capacity = 10;
+            } else {
+                $tableName = 'Company Table ' . ($t - 11);
+                $capacity = 10;
+            }
+            $tables[$tableName] = $wedding->tables()->updateOrCreate(
+                ['table_name' => $tableName],
+                ['table_number' => $t, 'capacity' => $capacity],
             );
         }
 
+        // 6. Assign Seating (Static + Automated Loops)
         $seatPlan = [
-            ['Lok Oknha Chan Dara', 'VIP Table', 1],
-            ['Lok Chumteav Lim Sreymom', 'VIP Table', 2],
-            ['Mr. Kim Sovann', 'VIP Table', 3],
-            ['Mrs. Sok Chantha', 'VIP Table', 4],
-            ['Dr. Seng Sarin', 'VIP Table', 5],
-            ['H.E. Keo Puthy', 'VIP Table', 6],
-            ['Chan Rotha', 'Bride Family Table', 1],
-            ['Kim Sreypich', 'Groom Family Table', 1],
-            ['Rithy Heng', 'Friends Table', 1],
-            ['Sreyneang Pich', 'Friends Table', 2],
-            ['Chenda Sok', 'Friends Table', 3],
-            ['Malis Chea', 'Friends Table', 4],
-            ['Kunthea Mao', 'Company Table', 1],
-            ['Samnang Oun', 'Company Table', 2],
+            ['Lok Oknha Chan Dara', 'VIP Table 1', 1],
+            ['Lok Chumteav Lim Sreymom', 'VIP Table 1', 2],
+            ['Mr. Kim Sovann', 'VIP Table 1', 3],
+            ['Mrs. Sok Chantha', 'VIP Table 1', 4],
+            ['Dr. Seng Sarin', 'VIP Table 1', 5],
+            ['H.E. Keo Puthy', 'VIP Table 1', 6],
+            ['Chan Rotha', 'Family Table 1', 1],
+            ['Kim Sreypich', 'Family Table 2', 1],
+            ['Rithy Heng', 'Friends Table 1', 1],
+            ['Sreyneang Pich', 'Friends Table 1', 2],
+            ['Chenda Sok', 'Friends Table 1', 3],
+            ['Malis Chea', 'Friends Table 1', 4],
+            ['Kunthea Mao', 'Company Table 1', 1],
+            ['Samnang Oun', 'Company Table 1', 2],
         ];
 
         foreach ($seatPlan as [$guestName, $tableName, $seat]) {
@@ -213,6 +287,63 @@ class DemoWeddingSeeder extends Seeder
             );
         }
 
+        $assignedSeats = [];
+        foreach ($tables as $tName => $tObj) {
+            $assignedSeats[$tName] = 0;
+        }
+        foreach ($seatPlan as [$guestName, $tName, $seat]) {
+            $assignedSeats[$tName] = max($assignedSeats[$tName], $seat);
+        }
+
+        $acceptedGuestNames = [];
+        foreach ($rsvpResponses as $gName => [$status, $count, $msg]) {
+            if ($status === RsvpStatus::Accepted) {
+                $acceptedGuestNames[] = $gName;
+            }
+        }
+
+        foreach ($acceptedGuestNames as $gName) {
+            $alreadySeated = false;
+            foreach ($seatPlan as [$spName, $spTable, $spSeat]) {
+                if ($spName === $gName) {
+                    $alreadySeated = true;
+                    break;
+                }
+            }
+            if ($alreadySeated) {
+                continue;
+            }
+
+            $guestObj = $guests[$gName];
+            $gGroup = $groups->first(fn($g) => $g->id === $guestObj->guest_group_id)?->name;
+
+            $matchedTable = null;
+            foreach ($tables as $tName => $tObj) {
+                if (str_contains($tName, $gGroup) && $assignedSeats[$tName] < $tObj->capacity) {
+                    $matchedTable = $tName;
+                    break;
+                }
+            }
+
+            if (!$matchedTable) {
+                foreach ($tables as $tName => $tObj) {
+                    if ($assignedSeats[$tName] < $tObj->capacity) {
+                        $matchedTable = $tName;
+                        break;
+                    }
+                }
+            }
+
+            if ($matchedTable) {
+                $assignedSeats[$matchedTable]++;
+                $guestObj->seating()->updateOrCreate(
+                    ['wedding_id' => $wedding->id],
+                    ['wedding_table_id' => $tables[$matchedTable]->id, 'seat_number' => $assignedSeats[$matchedTable]],
+                );
+            }
+        }
+
+        // 7. Seeding Gifts (Static + Additional Random contributions)
         $giftRows = [
             ['Lok Oknha Chan Dara', GiftType::Cash, 2000.00, 'USD', null, 'Wedding blessing from mom and dad'],
             ['Mr. Kim Sovann', GiftType::Cash, 1500.00, 'USD', null, 'For your new beginning together'],
@@ -241,6 +372,35 @@ class DemoWeddingSeeder extends Seeder
             );
         }
 
+        $giftedGuests = collect($giftRows)->pluck(0)->toArray();
+        $additionalGiftCount = 30; // Add 30 more gifts from accepted guests
+
+        foreach ($acceptedGuestNames as $gName) {
+            if (in_array($gName, $giftedGuests)) {
+                continue;
+            }
+            if ($additionalGiftCount <= 0) {
+                break;
+            }
+
+            $type = rand(1, 10) <= 8 ? GiftType::Cash : GiftType::BankTransfer;
+            $currency = rand(1, 10) <= 6 ? 'USD' : 'KHR';
+            $amount = ($currency === 'USD') ? rand(2, 20) * 10 : rand(8, 40) * 10000;
+            $note = rand(1, 10) <= 5 ? $messages[array_rand($messages)] : null;
+
+            $wedding->gifts()->updateOrCreate(
+                ['guest_id' => $guests[$gName]->id, 'gift_type' => $type->value],
+                [
+                    'amount' => $amount,
+                    'currency' => $currency,
+                    'note' => $note,
+                    'received_at' => now()->subDays(rand(1, 3))
+                ],
+            );
+            $additionalGiftCount--;
+        }
+
+        // 8. Timeline Events
         $timelineEvents = [
             [
                 TimelineCategory::Engagement,
@@ -325,6 +485,7 @@ class DemoWeddingSeeder extends Seeder
             ],
         );
 
+        // 9. Expenses
         $expenses = [
             ['Wedding Venue Booking', 'Sokha Hotel', 12000.00, 5000.00, ExpenseStatus::Partial, 'Deposit paid. Balance due 1 week before event.', now()->subDays(30), 'USD'],
             ['Catering & Drinks (60 Tables)', 'Sokha Catering', 15000.00, 0.00, ExpenseStatus::Planned, 'Estimated cost. Awaiting final guest count.', now()->addDays(10), 'USD'],
