@@ -37,7 +37,7 @@ class CatalogSeeder extends Seeder
             [
                 'name' => 'Essential',
                 'description' => 'Digital invitation, RSVP tracking and guest list for intimate weddings.',
-                'price' => 99,
+                'price' => 29,
                 'currency' => 'USD',
                 'features' => ['1 invitation design', 'Up to 150 guests', 'RSVP dashboard', 'QR code'],
                 'capabilities' => [
@@ -57,7 +57,7 @@ class CatalogSeeder extends Seeder
             [
                 'name' => 'Premium',
                 'description' => 'Everything in Essential plus seating plans, gift tracking and gallery.',
-                'price' => 249,
+                'price' => 69,
                 'currency' => 'USD',
                 'features' => ['3 invitation designs', 'Up to 500 guests', 'Seating planner', 'Gift tracking', 'Photo gallery'],
                 'capabilities' => [
@@ -77,7 +77,7 @@ class CatalogSeeder extends Seeder
             [
                 'name' => 'Signature',
                 'description' => 'Full-service digital wedding suite with premium templates.',
-                'price' => 499,
+                'price' => 99,
                 'currency' => 'USD',
                 'features' => ['Unlimited designs', 'Unlimited guests', 'All modules', 'Priority support'],
                 'capabilities' => [
