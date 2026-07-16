@@ -26,6 +26,16 @@ class DemoWeddingSeeder extends Seeder
     {
         $admin = $this->user('Srolanh Admin', 'admin@srolanh.com', RoleKey::SuperAdmin);
         $organizer = $this->user('Dara Organizer', 'organizer@srolanh.com', RoleKey::Organizer);
+
+        $this->seedPrimaryWedding($organizer);
+        $this->seedAdditionalWeddings($organizer);
+    }
+
+    /**
+     * Wedding #1 — Premium Package (Sophea & Visal) — 160 guests, full data
+     */
+    private function seedPrimaryWedding($organizer): void
+    {
         $bride = $this->user('Sophea Chan', 'sophea@srolanh.com', RoleKey::Couple);
         $groom = $this->user('Visal Kim', 'visal@srolanh.com', RoleKey::Couple);
 
@@ -512,6 +522,287 @@ class DemoWeddingSeeder extends Seeder
                     'currency' => $currency,
                 ]
             );
+        }
+    }
+
+    /**
+     * Weddings #2-#4 — Free, Essential, Signature packages
+     */
+    private function seedAdditionalWeddings($organizer): void
+    {
+        $familyNames = ['Chan', 'Kim', 'Sok', 'Lim', 'Heng', 'Pich', 'Oun', 'Mao', 'Tan', 'Chea', 'Pen', 'Vong', 'Ngin', 'Lor', 'Touch', 'Chhun', 'Hak', 'Keo', 'Seng', 'Oung', 'Meas', 'Chey', 'Rith', 'Nou', 'Sam', 'Tep', 'Nguon', 'Vann', 'Phan', 'Yim'];
+        $givenNames = ['Sophea', 'Visal', 'Chenda', 'Bopha', 'Rithy', 'Samnang', 'Kunthea', 'Vibol', 'Malis', 'Sothea', 'Reaksa', 'Pheakdey', 'Piseth', 'Veasna', 'Borey', 'Vannak', 'Sophal', 'Narith', 'Serey', 'Vuthy', 'Thyda', 'Dara', 'Sovan', 'Ratha', 'Kosal', 'Odom', 'Rattanak', 'Seyha', 'Vandy', 'Ponlok'];
+
+        $weddings = [
+            // Wedding #2 — Free Package (Draft, small wedding)
+            [
+                'code' => 'WED-DEMO02',
+                'name' => 'Bopha & Samnang',
+                'bride_name' => 'Bopha Lim',
+                'groom_name' => 'Samnang Hak',
+                'bride_email' => 'bopha@srolanh.com',
+                'groom_email' => 'samnang@srolanh.com',
+                'phone' => '+855 12 456 789',
+                'email' => 'bopha.samnang@example.com',
+                'wedding_date' => now()->addDays(90)->toDateString(),
+                'wedding_time' => '18:00',
+                'ceremony_venue' => 'Pagoda Ceremony Hall, Battambang',
+                'reception_venue' => 'Battambang Community Center',
+                'status' => WeddingStatus::Draft->value,
+                'published_at' => null,
+                'package' => 'Free',
+                'guest_count' => 25,
+                'story' => 'High school sweethearts from Battambang. After finishing university, they returned home to plan a modest family gathering.',
+            ],
+            // Wedding #3 — Essential Package (Published, mid-size)
+            [
+                'code' => 'WED-DEMO03',
+                'name' => 'Thyda & Piseth',
+                'bride_name' => 'Thyda Meas',
+                'groom_name' => 'Piseth Chey',
+                'bride_email' => 'thyda@srolanh.com',
+                'groom_email' => 'piseth@srolanh.com',
+                'phone' => '+855 17 789 012',
+                'email' => 'thyda.piseth@example.com',
+                'wedding_date' => now()->addDays(60)->toDateString(),
+                'wedding_time' => '17:00',
+                'ceremony_venue' => 'Royal Angkor Resort, Siem Reap',
+                'reception_venue' => 'Royal Angkor Ballroom',
+                'status' => WeddingStatus::Published->value,
+                'published_at' => now()->subDays(10),
+                'package' => 'Essential',
+                'guest_count' => 60,
+                'story' => 'Thyda and Piseth bonded over their shared passion for Angkor heritage preservation. Their Siem Reap wedding blends tradition with modern flair.',
+            ],
+            // Wedding #4 — Signature Package (Published, large wedding)
+            [
+                'code' => 'WED-DEMO04',
+                'name' => 'Sreymom & Virak',
+                'bride_name' => 'Sreymom Vann',
+                'groom_name' => 'Virak Tep',
+                'bride_email' => 'sreymom@srolanh.com',
+                'groom_email' => 'virak@srolanh.com',
+                'phone' => '+855 15 321 654',
+                'email' => 'sreymom.virak@example.com',
+                'wedding_date' => now()->addDays(30)->toDateString(),
+                'wedding_time' => '17:30',
+                'ceremony_venue' => 'Sofitel Phnom Penh Phokeethra',
+                'reception_venue' => 'Sofitel Grand Ballroom',
+                'status' => WeddingStatus::Published->value,
+                'published_at' => now()->subDays(25),
+                'package' => 'Signature',
+                'guest_count' => 100,
+                'story' => 'Sreymom, an architect, and Virak, a tech entrepreneur, are hosting a grand celebration at the Sofitel. Their wedding features a fusion of Khmer and Western elegance.',
+            ],
+        ];
+
+        $groupTypes = [
+            'Family' => GuestGroupType::Family->value,
+            'Friends' => GuestGroupType::Friends->value,
+            'VIP' => GuestGroupType::Vip->value,
+            'Company' => GuestGroupType::Company->value,
+        ];
+
+        $rsvpStatuses = [RsvpStatus::Accepted, RsvpStatus::Accepted, RsvpStatus::Accepted, RsvpStatus::Declined, RsvpStatus::Maybe];
+        $rsvpMessages = [
+            'Looking forward to it!',
+            'Congratulations!',
+            'Wishing you a lifetime of happiness!',
+            'So happy for you both!',
+            'Honored to be invited!',
+            null,
+        ];
+
+        foreach ($weddings as $wData) {
+            $bride = $this->user($wData['bride_name'], $wData['bride_email'], RoleKey::Couple);
+            $groom = $this->user($wData['groom_name'], $wData['groom_email'], RoleKey::Couple);
+
+            $packageId = Package::query()->where('name', $wData['package'])->value('id');
+
+            $wedding = Wedding::query()->updateOrCreate(
+                ['wedding_code' => $wData['code']],
+                [
+                    'wedding_name' => $wData['name'],
+                    'bride_name' => $wData['bride_name'],
+                    'groom_name' => $wData['groom_name'],
+                    'phone' => $wData['phone'],
+                    'email' => $wData['email'],
+                    'wedding_date' => $wData['wedding_date'],
+                    'wedding_time' => $wData['wedding_time'],
+                    'ceremony_venue' => $wData['ceremony_venue'],
+                    'reception_venue' => $wData['reception_venue'],
+                    'google_map_link' => 'https://maps.google.com/?q=' . urlencode($wData['reception_venue']),
+                    'story_description' => $wData['story'],
+                    'status' => $wData['status'],
+                    'published_at' => $wData['published_at'],
+                    'package_id' => $packageId,
+                    'created_by_user_id' => $organizer->id,
+                ],
+            );
+
+            $wedding->members()->updateOrCreate(
+                ['user_id' => $bride->id],
+                ['member_role' => MemberRole::Bride->value, 'is_primary' => true],
+            );
+            $wedding->members()->updateOrCreate(
+                ['user_id' => $groom->id],
+                ['member_role' => MemberRole::Groom->value, 'is_primary' => false],
+            );
+
+            // Subscription
+            Subscription::query()->updateOrCreate(
+                ['wedding_id' => $wedding->id],
+                [
+                    'package_id' => $packageId,
+                    'amount' => Package::query()->whereKey($packageId)->value('price'),
+                    'currency' => 'USD',
+                    'status' => $wData['package'] === 'Free'
+                        ? SubscriptionStatus::Submitted->value
+                        : SubscriptionStatus::Submitted->value,
+                    'payment_method' => $wData['package'] === 'Free' ? null : 'aba',
+                    'payment_reference' => $wData['package'] === 'Free' ? null : 'DEMO-TXN-' . $wData['code'],
+                    'submitted_at' => now()->subDays(5),
+                    'paid_at' => null,
+                ],
+            );
+
+            // Guest Groups
+            $groups = collect($groupTypes)->mapWithKeys(function ($type, $name) use ($wedding) {
+                return [$name => $wedding->guestGroups()->updateOrCreate(
+                    ['name' => $name],
+                    ['type' => $type, 'sort_order' => match ($name) {
+                        'Family' => 1, 'Friends' => 2, 'VIP' => 3, 'Company' => 4,
+                    }],
+                )];
+            });
+
+            // Generate guests
+            $groupNamesList = ['Family', 'Friends', 'VIP', 'Company'];
+            $generatedNames = [];
+            $guests = [];
+
+            while (count($generatedNames) < $wData['guest_count']) {
+                $fName = $familyNames[array_rand($familyNames)];
+                $gName = $givenNames[array_rand($givenNames)];
+                $fullName = $fName . ' ' . $gName;
+                if (!in_array($fullName, $generatedNames)) {
+                    $generatedNames[] = $fullName;
+                }
+            }
+
+            foreach ($generatedNames as $i => $name) {
+                $groupName = $groupNamesList[$i % 4];
+                $phone = '+855 ' . rand(10, 99) . ' ' . rand(100, 999) . ' ' . rand(100, 999);
+                $email = strtolower(str_replace(' ', '.', $name)) . '.' . strtolower(str_replace('WED-', '', $wData['code'])) . '@example.com';
+
+                $guests[$name] = $wedding->guests()->updateOrCreate(
+                    ['name' => $name],
+                    [
+                        'phone' => $phone,
+                        'email' => $email,
+                        'address' => 'Phnom Penh',
+                        'guest_group_id' => $groups[$groupName]->id,
+                        'invitation_id' => null,
+                        'is_vip' => ($groupName === 'VIP'),
+                    ],
+                );
+            }
+
+            // RSVP for ~70% of guests
+            $rsvpCount = (int) ($wData['guest_count'] * 0.7);
+            $guestNames = array_keys($guests);
+            shuffle($guestNames);
+
+            foreach (array_slice($guestNames, 0, $rsvpCount) as $gName) {
+                $status = $rsvpStatuses[array_rand($rsvpStatuses)];
+                $count = ($status === RsvpStatus::Accepted) ? rand(1, 2) : 1;
+
+                $wedding->rsvpResponses()->updateOrCreate(
+                    ['guest_id' => $guests[$gName]->id],
+                    [
+                        'invitation_id' => null,
+                        'guest_name' => $guests[$gName]->name,
+                        'phone' => $guests[$gName]->phone,
+                        'number_of_guests' => $count,
+                        'message' => $rsvpMessages[array_rand($rsvpMessages)],
+                        'status' => $status->value,
+                        'responded_at' => now()->subDays(rand(1, 15)),
+                    ],
+                );
+            }
+
+            // Tables (1 table per 10 guests)
+            $tableCount = max(1, (int) ceil($wData['guest_count'] / 10));
+            $tables = [];
+            for ($t = 1; $t <= $tableCount; $t++) {
+                $tName = 'Table ' . $t;
+                $tables[$tName] = $wedding->tables()->updateOrCreate(
+                    ['table_name' => $tName],
+                    ['table_number' => $t, 'capacity' => 10],
+                );
+            }
+
+            // Timeline
+            $wedding->timelineEvents()->updateOrCreate(
+                ['title' => 'Wedding Ceremony'],
+                [
+                    'category' => TimelineCategory::Ceremony->value,
+                    'description' => 'Traditional Khmer wedding ceremony.',
+                    'starts_at' => now()->parse($wData['wedding_date'])->setTime(9, 0),
+                    'location' => $wData['ceremony_venue'],
+                    'sort_order' => 1,
+                    'is_public' => true,
+                ],
+            );
+            $wedding->timelineEvents()->updateOrCreate(
+                ['title' => 'Reception Dinner'],
+                [
+                    'category' => TimelineCategory::Reception->value,
+                    'description' => 'Evening dinner reception with family and friends.',
+                    'starts_at' => now()->parse($wData['wedding_date'])->setTime((int) $wData['wedding_time'], 0),
+                    'location' => $wData['reception_venue'],
+                    'sort_order' => 2,
+                    'is_public' => true,
+                ],
+            );
+
+            // Expenses (scaled to package level)
+            $expenseScale = match ($wData['package']) {
+                'Free' => 0.3,
+                'Essential' => 0.6,
+                'Signature' => 1.5,
+                default => 1.0,
+            };
+
+            $baseExpenses = [
+                ['Venue Booking', 'Wedding Hall', 5000.00, ExpenseStatus::Partial],
+                ['Catering', 'Catering Service', 3000.00, ExpenseStatus::Planned],
+                ['Photography', 'Photo Studio', 1500.00, ExpenseStatus::Paid],
+                ['Attire & Styling', 'Boutique', 2000.00, ExpenseStatus::Paid],
+                ['Decorations', 'Florist', 1000.00, ExpenseStatus::Partial],
+            ];
+
+            foreach ($baseExpenses as [$itemName, $vendor, $baseAmount, $status]) {
+                $amount = round($baseAmount * $expenseScale, 2);
+                $paidAmount = match ($status) {
+                    ExpenseStatus::Paid => $amount,
+                    ExpenseStatus::Partial => round($amount * 0.4, 2),
+                    default => 0.00,
+                };
+
+                $wedding->expenses()->updateOrCreate(
+                    ['item_name' => $itemName],
+                    [
+                        'vendor' => $vendor,
+                        'amount' => $amount,
+                        'paid_amount' => $paidAmount,
+                        'status' => $status->value,
+                        'note' => null,
+                        'spent_at' => now()->subDays(rand(5, 30)),
+                        'currency' => 'USD',
+                    ],
+                );
+            }
         }
     }
 
