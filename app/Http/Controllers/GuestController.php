@@ -58,12 +58,17 @@ class GuestController extends Controller
         return response()->json(['message' => 'Guest deleted.']);
     }
 
-    public function destroyAll(Wedding $wedding): JsonResponse
+    public function destroyAll(Request $request, Wedding $wedding): JsonResponse
     {
-        $count = $this->guestService->deleteAll($wedding);
+        $rawIds = $request->input('guest_ids');
+        $guestIds = is_array($rawIds) && count($rawIds) > 0
+            ? array_values(array_map('intval', array_filter($rawIds, 'is_numeric')))
+            : null;
+
+        $count = $this->guestService->deleteAll($wedding, $guestIds);
 
         return response()->json([
-            'message' => "All {$count} guests have been erased.",
+            'message' => "{$count} guests have been deleted.",
             'deleted' => $count,
         ]);
     }

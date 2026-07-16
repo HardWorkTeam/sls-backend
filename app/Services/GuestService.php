@@ -83,9 +83,20 @@ class GuestService
         $this->guests->delete($guest);
     }
 
-    public function deleteAll(Wedding $wedding): int
+    /**
+     * Delete all or specific selected guests for a wedding.
+     *
+     * @param  list<int>|null  $guestIds
+     */
+    public function deleteAll(Wedding $wedding, ?array $guestIds = null): int
     {
-        return $wedding->guests()->delete();
+        $query = $wedding->guests();
+
+        if (! empty($guestIds)) {
+            $query->whereIn('id', $guestIds);
+        }
+
+        return $query->delete();
     }
 
     /**
