@@ -178,7 +178,8 @@ class GuestService
      * Uses each sheet tab name as the default group name (e.g. "Family", "VIP"),
      * unless overridden by a 'group' column value in the row.
      * Supports single-column lists, numbered lists ("1. Guest Name", "2. Serey & Maramony"),
-     * index/sequence columns ("No.", "#", "ល.រ"), flexible headers in English & Khmer,
+     * offset columns (e.g. Column A empty, Col B sequence number, Col C guest name),
+     * title banner rows ("ឈ្មោះភ្ញៀវ..."), flexible headers in English & Khmer,
      * as well as completely headerless guest lists.
      *
      * @return array{imported: int, skipped: int, errors: list<string>}
@@ -226,19 +227,59 @@ class GuestService
                 $isGenericSheet = (bool) preg_match('/^(sheet|table|worksheet|page)\s*\d*$/i', $rawSheetName);
                 $defaultSheetGroup = $isGenericSheet ? null : $rawSheetName;
 
-                $header = $sheet['header'];
-                $rows = $sheet['rows'];
+                // Collect all non-empty rows in this sheet
+                $rawRows = array_merge([$sheet['header']], $sheet['rows']);
+                $allRows = [];
+                foreach ($rawRows as $row) {
+                    $hasCell = false;
+                    foreach ($row as $cell) {
+                        if ($cell !== null && trim((string) $cell) !== '') {
+                            $hasCell = true;
+                            break;
+                        }
+                    }
+                    if ($hasCell) {
+                        $allRows[] = array_map(fn ($cell) => $cell !== null ? trim((string) $cell) : '', $row);
+                    }
+                }
 
-                // Build column map: map index in row -> canonical key ('name', 'phone', etc.)
+                if (count($allRows) === 0) {
+                    continue;
+                }
+
+                // 1. Check if the first row is a title banner (e.g. "ឈ្មោះភ្ញៀវខាងប៉ាកូនកំលោះ")
+                $firstRow = $allRows[0];
+                $nonEmptyCellsInFirstRow = array_values(array_filter($firstRow, fn ($c) => $c !== ''));
+
+                $isTitleBanner = false;
+                if (count($nonEmptyCellsInFirstRow) <= 2) {
+                    $firstRowText = implode(' ', $nonEmptyCellsInFirstRow);
+                    if (preg_match('/(?:ឈ្មោះភ្ញៀវ|បញ្ជីឈ្មោះ|guest\s*list|list\s*of\s*guests)/iu', $firstRowText)) {
+                        $isTitleBanner = true;
+                    }
+                }
+
+                if ($isTitleBanner) {
+                    $titleText = trim(implode(' ', $nonEmptyCellsInFirstRow));
+                    if (! $defaultSheetGroup && $titleText !== '') {
+                        $defaultSheetGroup = $titleText;
+                    }
+                    array_shift($allRows); // Remove title banner row
+                }
+
+                if (count($allRows) === 0) {
+                    continue;
+                }
+
+                // 2. Determine column mapping
                 $columnMap = [];
-                $hasNameColumn = false;
+                $hasExplicitNameHeader = false;
+                $possibleHeaderRow = $allRows[0];
 
-                foreach ($header as $colIndex => $colText) {
-                    $colTextClean = trim((string) $colText);
+                foreach ($possibleHeaderRow as $colIndex => $colTextClean) {
                     if ($colTextClean === '') {
                         continue;
                     }
-
                     $colTextLower = mb_strtolower($colTextClean);
 
                     if (in_array($colTextLower, $sequenceAliases, true)) {
@@ -250,63 +291,93 @@ class GuestService
                         if (in_array($colTextLower, $keywords, true)) {
                             $columnMap[$colIndex] = $key;
                             if ($key === 'name') {
-                                $hasNameColumn = true;
+                                $hasExplicitNameHeader = true;
                             }
                             break;
                         }
                     }
                 }
 
-                // Determine if header row is actually data (headerless file)
-                $firstColIsNumber = isset($header[0]) && (bool) preg_match('/^(?:#?\d+[\.\)\-\/\:]?|\d+)$/u', trim((string) $header[0]));
-                $nonSeqMapped = array_filter($columnMap, fn ($k) => $k !== '__seq__');
+                $mappedKeys = array_values(array_filter($columnMap, fn ($k) => $k !== '__seq__'));
+                $isExplicitHeaderRow = count($mappedKeys) > 0 || in_array('__seq__', $columnMap, true);
 
-                if (count($nonSeqMapped) === 0 || $firstColIsNumber) {
-                    // Header is actually data! Re-insert header into rows.
-                    array_unshift($rows, $header);
-                    $columnMap = [];
-                    $hasNameColumn = true;
-
-                    // Heuristic for headerless rows:
-                    // If first row has 2+ columns and Col 0 is sequence number (like "1" or "1."), Col 1 is name.
-                    // Otherwise Col 0 is name.
-                    $sampleRow = $rows[0] ?? [];
-                    $sampleCol0 = trim((string) ($sampleRow[0] ?? ''));
-                    $sampleCol0IsSeq = (bool) preg_match('/^(?:#?\d+[\.\)\-\/\:]?|\d+)$/u', $sampleCol0);
-
-                    if (count($sampleRow) > 1 && $sampleCol0IsSeq) {
-                        $columnMap[1] = 'name';
-                        $columnMap[0] = '__seq__';
-                        $columnMap[2] = 'phone';
-                        $columnMap[3] = 'email';
-                        $columnMap[4] = 'address';
-                        $columnMap[5] = 'group';
-                        $columnMap[6] = 'is_vip';
-                        $columnMap[7] = 'note';
-                    } else {
-                        $columnMap[0] = 'name';
-                        $columnMap[1] = 'phone';
-                        $columnMap[2] = 'email';
-                        $columnMap[3] = 'address';
-                        $columnMap[4] = 'group';
-                        $columnMap[5] = 'is_vip';
-                        $columnMap[6] = 'note';
+                // If explicit header row matched, shift it out of data rows
+                if ($isExplicitHeaderRow && $hasExplicitNameHeader) {
+                    array_shift($allRows);
+                } else {
+                    // No explicit 'name' header matched, or row 0 is actual data rows.
+                    // If sequence header was matched on row 0, shift header out; otherwise keep row 0 as data.
+                    if ($isExplicitHeaderRow && ! $hasExplicitNameHeader) {
+                        array_shift($allRows);
                     }
-                } elseif (! $hasNameColumn) {
-                    // Mapped headers existed (e.g. sequence column, phone, etc.), but no explicit 'name' alias matched
-                    $seqColIndex = array_search('__seq__', $columnMap, true);
-                    if ($seqColIndex !== false && isset($header[$seqColIndex + 1])) {
-                        $columnMap[$seqColIndex + 1] = 'name';
-                    } elseif (isset($header[0]) && ($columnMap[0] ?? null) !== '__seq__') {
-                        $columnMap[0] = 'name';
+
+                    // Perform data-driven column classification across data rows
+                    $colStats = [];
+                    foreach ($allRows as $r) {
+                        foreach ($r as $colIdx => $val) {
+                            if ($val === '') {
+                                continue;
+                            }
+                            if (! isset($colStats[$colIdx])) {
+                                $colStats[$colIdx] = ['seq' => 0, 'phone' => 0, 'email' => 0, 'text' => 0, 'total' => 0];
+                            }
+                            $colStats[$colIdx]['total']++;
+
+                            if (preg_match('/^(?:#?\d+[\.\)\-\/\:]?|\d+)$/u', $val)) {
+                                $colStats[$colIdx]['seq']++;
+                            } elseif (preg_match('/^\+?\d[\d\s\-\.]{6,14}$/', $val)) {
+                                $colStats[$colIdx]['phone']++;
+                            } elseif (str_contains($val, '@')) {
+                                $colStats[$colIdx]['email']++;
+                            } else {
+                                $colStats[$colIdx]['text']++;
+                            }
+                        }
+                    }
+
+                    // Map sequence, phone, email columns based on stats
+                    foreach ($colStats as $colIdx => $stats) {
+                        if (isset($columnMap[$colIdx])) {
+                            continue;
+                        }
+                        if ($stats['seq'] / max(1, $stats['total']) > 0.4) {
+                            $columnMap[$colIdx] = '__seq__';
+                        } elseif ($stats['phone'] / max(1, $stats['total']) > 0.4) {
+                            $columnMap[$colIdx] = 'phone';
+                        } elseif ($stats['email'] / max(1, $stats['total']) > 0.4) {
+                            $columnMap[$colIdx] = 'email';
+                        }
+                    }
+
+                    // Find the best 'name' column: unmapped column with the highest text count
+                    $bestNameCol = null;
+                    $maxText = -1;
+                    foreach ($colStats as $colIdx => $stats) {
+                        if (isset($columnMap[$colIdx])) {
+                            continue;
+                        }
+                        if ($stats['text'] > $maxText) {
+                            $maxText = $stats['text'];
+                            $bestNameCol = $colIdx;
+                        }
+                    }
+
+                    if ($bestNameCol !== null) {
+                        $columnMap[$bestNameCol] = 'name';
                     } else {
-                        $columnMap[1] = 'name';
+                        // Fallback: first non-sequence column is name
+                        foreach ($colStats as $colIdx => $stats) {
+                            if (($columnMap[$colIdx] ?? null) !== '__seq__') {
+                                $columnMap[$colIdx] = 'name';
+                                break;
+                            }
+                        }
                     }
                 }
 
-                $line = 1; // row 1 was header or first data line
+                $line = 1;
 
-                foreach ($rows as $row) {
+                foreach ($allRows as $row) {
                     $line++;
                     $sheetLabel = count($sheets) > 1 ? "Sheet \"{$rawSheetName}\", Line {$line}" : "Line {$line}";
 
