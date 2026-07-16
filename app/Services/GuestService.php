@@ -177,8 +177,9 @@ class GuestService
      * Import guests from an Excel (XLSX/XLS) or CSV file across all sheets.
      * Uses each sheet tab name as the default group name (e.g. "Family", "VIP"),
      * unless overridden by a 'group' column value in the row.
-     * Supports flexible column names (Name, Phone, Email, Address, Group, VIP, Note)
-     * as well as headerless guest lists.
+     * Supports single-column lists, numbered lists ("1. Guest Name", "2. Serey & Maramony"),
+     * index/sequence columns ("No.", "#", "ល.រ"), flexible headers in English & Khmer,
+     * as well as completely headerless guest lists.
      *
      * @return array{imported: int, skipped: int, errors: list<string>}
      */
@@ -191,13 +192,22 @@ class GuestService
         }
 
         $aliases = [
-            'name' => ['name', 'guest_name', 'full_name', 'guest', 'names', 'guest name', 'full name', 'fullname'],
-            'phone' => ['phone', 'tel', 'phone_number', 'mobile', 'contact', 'phone number', 'phonenumber'],
-            'email' => ['email', 'email_address', 'mail', 'email address'],
-            'address' => ['address', 'location', 'addr'],
-            'group' => ['group', 'guest_group', 'category', 'type', 'guest group', 'group_name', 'group name'],
-            'is_vip' => ['is_vip', 'vip', 'is vip'],
-            'note' => ['note', 'notes', 'remark', 'remarks', 'comment', 'comments'],
+            'name' => [
+                'name', 'guest_name', 'full_name', 'guest', 'names', 'guest name', 'full name', 'fullname',
+                'guests', 'guestlist', 'guest list', 'khmer name', 'english name', 'attendee', 'attendees',
+                'visitor', 'visitors', 'ឈ្មោះ', 'ភ្ញៀវ', 'ឈ្មោះភ្ញៀវ', 'ឈ្មោះ ភ្ញៀវ', 'អ្នកចូលរួម', 'ឈ្មោះពេញ',
+            ],
+            'phone' => ['phone', 'tel', 'phone_number', 'mobile', 'contact', 'phone number', 'phonenumber', 'លេខទូរស័ព្ទ', 'ទូរស័ព្ទ', 'លេខទូរសព្ទ'],
+            'email' => ['email', 'email_address', 'mail', 'email address', 'អ៊ីមែល'],
+            'address' => ['address', 'location', 'addr', 'អាសយដ្ឋាន', 'ទីតាំង'],
+            'group' => ['group', 'guest_group', 'category', 'type', 'guest group', 'group_name', 'group name', 'ក្រុម', 'ប្រភេទ'],
+            'is_vip' => ['is_vip', 'vip', 'is vip', 'វីអាយភី'],
+            'note' => ['note', 'notes', 'remark', 'remarks', 'comment', 'comments', 'ចំណាំ', 'ផ្សេងៗ'],
+        ];
+
+        $sequenceAliases = [
+            'no', 'no.', 'nº', '#', 'id', 'item', 'num', 'number', 'seq', 'index',
+            'ល.រ', 'លរ', 'លរ.', 'ល.រ.', 'លំដាប់', 'លំដាប់លេខ',
         ];
 
         $groups = $wedding->guestGroups()->pluck('id', 'name')->toArray();
@@ -209,7 +219,7 @@ class GuestService
         $limit = PlanCapabilities::forWedding($wedding)->guestLimit;
         $remaining = $limit === null ? PHP_INT_MAX : max(0, $limit - $wedding->guests()->count());
 
-        DB::transaction(function () use ($sheets, $aliases, $wedding, &$groups, $limit, &$remaining, &$imported, &$skipped, &$errors) {
+        DB::transaction(function () use ($sheets, $aliases, $sequenceAliases, $wedding, &$groups, $limit, &$remaining, &$imported, &$skipped, &$errors) {
             foreach ($sheets as $sheet) {
                 $rawSheetName = $sheet['name'];
                 // Ignore generic sheet names like Sheet1, Worksheet 1
@@ -225,8 +235,19 @@ class GuestService
 
                 foreach ($header as $colIndex => $colText) {
                     $colTextClean = trim((string) $colText);
+                    if ($colTextClean === '') {
+                        continue;
+                    }
+
+                    $colTextLower = mb_strtolower($colTextClean);
+
+                    if (in_array($colTextLower, $sequenceAliases, true)) {
+                        $columnMap[$colIndex] = '__seq__';
+                        continue;
+                    }
+
                     foreach ($aliases as $key => $keywords) {
-                        if (in_array($colTextClean, $keywords, true)) {
+                        if (in_array($colTextLower, $keywords, true)) {
                             $columnMap[$colIndex] = $key;
                             if ($key === 'name') {
                                 $hasNameColumn = true;
@@ -236,14 +257,51 @@ class GuestService
                     }
                 }
 
-                // If no column matched any header alias, the first row is actually data (headerless file)
-                if (count($columnMap) === 0) {
+                // Determine if header row is actually data (headerless file)
+                $firstColIsNumber = isset($header[0]) && (bool) preg_match('/^(?:#?\d+[\.\)\-\/\:]?|\d+)$/u', trim((string) $header[0]));
+                $nonSeqMapped = array_filter($columnMap, fn ($k) => $k !== '__seq__');
+
+                if (count($nonSeqMapped) === 0 || $firstColIsNumber) {
+                    // Header is actually data! Re-insert header into rows.
                     array_unshift($rows, $header);
-                    $columnMap = [0 => 'name', 1 => 'phone', 2 => 'email', 3 => 'address', 4 => 'group', 5 => 'is_vip', 6 => 'note'];
+                    $columnMap = [];
                     $hasNameColumn = true;
-                } elseif (! $hasNameColumn && isset($header[0])) {
-                    // Default column 0 to name if no explicit 'name' header was matched
-                    $columnMap[0] = 'name';
+
+                    // Heuristic for headerless rows:
+                    // If first row has 2+ columns and Col 0 is sequence number (like "1" or "1."), Col 1 is name.
+                    // Otherwise Col 0 is name.
+                    $sampleRow = $rows[0] ?? [];
+                    $sampleCol0 = trim((string) ($sampleRow[0] ?? ''));
+                    $sampleCol0IsSeq = (bool) preg_match('/^(?:#?\d+[\.\)\-\/\:]?|\d+)$/u', $sampleCol0);
+
+                    if (count($sampleRow) > 1 && $sampleCol0IsSeq) {
+                        $columnMap[1] = 'name';
+                        $columnMap[0] = '__seq__';
+                        $columnMap[2] = 'phone';
+                        $columnMap[3] = 'email';
+                        $columnMap[4] = 'address';
+                        $columnMap[5] = 'group';
+                        $columnMap[6] = 'is_vip';
+                        $columnMap[7] = 'note';
+                    } else {
+                        $columnMap[0] = 'name';
+                        $columnMap[1] = 'phone';
+                        $columnMap[2] = 'email';
+                        $columnMap[3] = 'address';
+                        $columnMap[4] = 'group';
+                        $columnMap[5] = 'is_vip';
+                        $columnMap[6] = 'note';
+                    }
+                } elseif (! $hasNameColumn) {
+                    // Mapped headers existed (e.g. sequence column, phone, etc.), but no explicit 'name' alias matched
+                    $seqColIndex = array_search('__seq__', $columnMap, true);
+                    if ($seqColIndex !== false && isset($header[$seqColIndex + 1])) {
+                        $columnMap[$seqColIndex + 1] = 'name';
+                    } elseif (isset($header[0]) && ($columnMap[0] ?? null) !== '__seq__') {
+                        $columnMap[0] = 'name';
+                    } else {
+                        $columnMap[1] = 'name';
+                    }
                 }
 
                 $line = 1; // row 1 was header or first data line
@@ -255,6 +313,9 @@ class GuestService
                     // Map row data using columnMap
                     $data = [];
                     foreach ($columnMap as $colIndex => $key) {
+                        if ($key === '__seq__') {
+                            continue;
+                        }
                         $val = isset($row[$colIndex]) ? trim((string) $row[$colIndex]) : '';
                         if ($val !== '') {
                             $data[$key] = $val;
@@ -262,6 +323,11 @@ class GuestService
                     }
 
                     $guestName = $data['name'] ?? null;
+
+                    if ($guestName !== null) {
+                        // Clean up leading sequence numbers (e.g. "1. Chan Vireakboth", "2. Serey & Maramony", "3) Sok", "#4 John")
+                        $guestName = trim(preg_replace('/^(?:#?\d+[\.\)\-\/\:]\s*|#?\d+\s+)/u', '', $guestName));
+                    }
 
                     if (! $guestName) {
                         // Skip if blank row
