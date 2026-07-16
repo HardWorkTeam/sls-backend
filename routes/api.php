@@ -142,6 +142,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/guests', [GuestController::class, 'index']);
         Route::post('/guests', [GuestController::class, 'store']);
+        Route::delete('/guests', [GuestController::class, 'destroyAll']);
         Route::post('/guests/import', [GuestController::class, 'import']);
         Route::get('/guests/export', [GuestController::class, 'export']);
         Route::post('/guests/bulk-invite', [GuestController::class, 'bulkInvite']);

@@ -58,6 +58,16 @@ class GuestController extends Controller
         return response()->json(['message' => 'Guest deleted.']);
     }
 
+    public function destroyAll(Wedding $wedding): JsonResponse
+    {
+        $count = $this->guestService->deleteAll($wedding);
+
+        return response()->json([
+            'message' => "All {$count} guests have been erased.",
+            'deleted' => $count,
+        ]);
+    }
+
     public function import(ImportGuestsRequest $request, Wedding $wedding): JsonResponse
     {
         $result = $this->guestService->importCsv($wedding, $request->file('file'));

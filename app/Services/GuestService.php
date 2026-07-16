@@ -83,6 +83,11 @@ class GuestService
         $this->guests->delete($guest);
     }
 
+    public function deleteAll(Wedding $wedding): int
+    {
+        return $wedding->guests()->delete();
+    }
+
     /**
      * Check a guest in by their QR token (wedding-day scan). The token is
      * scoped to the wedding so a code from another event never matches.
