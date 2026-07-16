@@ -62,10 +62,6 @@ class PublicInvitationResource extends JsonResource
 
         $settings = $this->settings ?? [];
 
-        if (isset($settings['bank_account']['qr_url']) && $this->isMediaNonPublic($settings['bank_account']['qr_url'], $nonPublicPaths)) {
-            $settings['bank_account']['qr_url'] = null;
-        }
-
         if (isset($settings['gallery_urls']) && is_array($settings['gallery_urls'])) {
             $settings['gallery_urls'] = array_values(array_filter(
                 $settings['gallery_urls'],
