@@ -118,14 +118,16 @@ class Excel
     }
 
     /**
-     * Read a spreadsheet file (CSV or XLSX) and return the header row and
-     * data rows as plain arrays. Uses PhpSpreadsheet's IOFactory so the
-     * same import logic works regardless of file format.
+     * Read all worksheets in a spreadsheet file (CSV or XLSX).
+     * Returns an array of sheets, where each sheet contains:
+     * - 'name': string (the worksheet tab name)
+     * - 'header': list<string>
+     * - 'rows': list<list<string|null>>
      *
-     * @return array{header: list<string>, rows: list<list<string|null>>}|null
-     *         Null when the file cannot be read or is empty.
+     * @return list<array{name: string, header: list<string>, rows: list<list<string|null>>}>|null
+     *         Null when the file cannot be read or contains no data.
      */
-    public static function readRows(string $filePath): ?array
+    public static function readSheets(string $filePath): ?array
     {
         try {
             $spreadsheet = IOFactory::load($filePath);
@@ -133,32 +135,82 @@ class Excel
             return null;
         }
 
-        $sheet = $spreadsheet->getActiveSheet();
-        $data = $sheet->toArray(null, true, false, false);
+        $sheets = [];
+        foreach ($spreadsheet->getAllSheets() as $worksheet) {
+            $sheetName = trim($worksheet->getTitle());
+            $data = $worksheet->toArray(null, true, false, false);
+
+            if (! is_array($data) || count($data) === 0) {
+                continue;
+            }
+
+            // Filter out completely empty rows
+            $data = array_values(array_filter($data, function ($row) {
+                if (! is_array($row)) {
+                    return false;
+                }
+                foreach ($row as $cell) {
+                    if ($cell !== null && trim((string) $cell) !== '') {
+                        return true;
+                    }
+                }
+
+                return false;
+            }));
+
+            if (count($data) === 0) {
+                continue;
+            }
+
+            $rawHeader = array_shift($data);
+            $header = array_map(
+                fn ($col) => strtolower(trim((string) ($col ?? ''))),
+                $rawHeader ?? [],
+            );
+
+            if (! empty($header) && isset($header[0])) {
+                $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
+            }
+
+            $rows = array_map(
+                fn (array $row) => array_map(
+                    fn ($cell) => $cell !== null ? trim((string) $cell) : null,
+                    $row,
+                ),
+                $data,
+            );
+
+            $sheets[] = [
+                'name' => $sheetName,
+                'header' => $header,
+                'rows' => $rows,
+            ];
+        }
+
         $spreadsheet->disconnectWorksheets();
 
-        if (count($data) === 0) {
+        return count($sheets) > 0 ? $sheets : null;
+    }
+
+    /**
+     * Read a spreadsheet file (CSV or XLSX) and return the first sheet's header and
+     * data rows as plain arrays. Uses PhpSpreadsheet's IOFactory.
+     *
+     * @return array{header: list<string>, rows: list<list<string|null>>}|null
+     *         Null when the file cannot be read or is empty.
+     */
+    public static function readRows(string $filePath): ?array
+    {
+        $sheets = self::readSheets($filePath);
+
+        if ($sheets === null || count($sheets) === 0) {
             return null;
         }
 
-        // First row is the header.
-        $header = array_map(
-            fn ($col) => strtolower(trim((string) ($col ?? ''))),
-            array_shift($data),
-        );
-
-        // Strip a UTF-8 BOM that some editors/Excel prepend.
-        $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
-
-        $rows = array_map(
-            fn (array $row) => array_map(
-                fn ($cell) => $cell !== null ? trim((string) $cell) : null,
-                $row,
-            ),
-            $data,
-        );
-
-        return ['header' => $header, 'rows' => $rows];
+        return [
+            'header' => $sheets[0]['header'],
+            'rows' => $sheets[0]['rows'],
+        ];
     }
 
     /**

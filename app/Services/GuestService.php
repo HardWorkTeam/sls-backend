@@ -174,92 +174,139 @@ class GuestService
     }
 
     /**
-     * Import guests from a CSV or XLSX file.
-     * Expected headers: name, phone, email, address, group, is_vip, note.
+     * Import guests from an Excel (XLSX/XLS) or CSV file across all sheets.
+     * Uses each sheet tab name as the default group name (e.g. "Family", "VIP"),
+     * unless overridden by a 'group' column value in the row.
+     * Supports flexible column names (Name, Phone, Email, Address, Group, VIP, Note)
+     * as well as headerless guest lists.
      *
      * @return array{imported: int, skipped: int, errors: list<string>}
      */
     public function importCsv(Wedding $wedding, UploadedFile $file): array
     {
-        $parsed = Excel::readRows($file->getRealPath());
+        $sheets = Excel::readSheets($file->getRealPath());
 
-        if ($parsed === null) {
+        if ($sheets === null) {
             return ['imported' => 0, 'skipped' => 0, 'errors' => ['Unable to read the uploaded file.']];
         }
 
-        $header = $parsed['header'];
-        $rows = $parsed['rows'];
+        $aliases = [
+            'name' => ['name', 'guest_name', 'full_name', 'guest', 'names', 'guest name', 'full name', 'fullname'],
+            'phone' => ['phone', 'tel', 'phone_number', 'mobile', 'contact', 'phone number', 'phonenumber'],
+            'email' => ['email', 'email_address', 'mail', 'email address'],
+            'address' => ['address', 'location', 'addr'],
+            'group' => ['group', 'guest_group', 'category', 'type', 'guest group', 'group_name', 'group name'],
+            'is_vip' => ['is_vip', 'vip', 'is vip'],
+            'note' => ['note', 'notes', 'remark', 'remarks', 'comment', 'comments'],
+        ];
 
-        if (count($rows) === 0) {
-            return ['imported' => 0, 'skipped' => 0, 'errors' => ['The file has no data rows.']];
-        }
-
-        $groups = $wedding->guestGroups()->pluck('id', 'name');
+        $groups = $wedding->guestGroups()->pluck('id', 'name')->toArray();
         $imported = 0;
         $skipped = 0;
         $errors = [];
-        $line = 1;
 
-        // Plan guest cap: stop importing once the wedding hits its limit
-        // (null = unlimited). Rows beyond the cap are skipped, not created.
+        // Plan guest cap: stop importing once the wedding hits its limit (null = unlimited).
         $limit = PlanCapabilities::forWedding($wedding)->guestLimit;
         $remaining = $limit === null ? PHP_INT_MAX : max(0, $limit - $wedding->guests()->count());
 
-        DB::transaction(function () use ($rows, $header, $wedding, $groups, $limit, &$remaining, &$imported, &$skipped, &$errors, &$line) {
-            foreach ($rows as $row) {
-                $line++;
+        DB::transaction(function () use ($sheets, $aliases, $wedding, &$groups, $limit, &$remaining, &$imported, &$skipped, &$errors) {
+            foreach ($sheets as $sheet) {
+                $rawSheetName = $sheet['name'];
+                // Ignore generic sheet names like Sheet1, Worksheet 1
+                $isGenericSheet = (bool) preg_match('/^(sheet|table|worksheet|page)\s*\d*$/i', $rawSheetName);
+                $defaultSheetGroup = $isGenericSheet ? null : $rawSheetName;
 
-                // Skip entirely blank rows.
-                if (count($row) === 1 && trim((string) ($row[0] ?? '')) === '') {
-                    continue;
-                }
-                if (count(array_filter($row, fn ($cell) => $cell !== null && trim((string) $cell) !== '')) === 0) {
-                    continue;
-                }
+                $header = $sheet['header'];
+                $rows = $sheet['rows'];
 
-                // Normalize the row to exactly the header's width — pad short
-                // rows, truncate long ones.
-                $cells = array_map(fn ($cell) => trim((string) ($cell ?? '')), $row);
-                $data = array_combine(
-                    $header,
-                    array_slice(array_pad($cells, count($header), null), 0, count($header)),
-                );
+                // Build column map: map index in row -> canonical key ('name', 'phone', etc.)
+                $columnMap = [];
+                $hasNameColumn = false;
 
-                if (empty($data['name'])) {
-                    $skipped++;
-                    $errors[] = "Line {$line}: missing guest name.";
-
-                    continue;
-                }
-
-                if ($remaining <= 0) {
-                    $skipped++;
-                    $errors[] = "Line {$line}: plan limit of {$limit} guests reached.";
-
-                    continue;
+                foreach ($header as $colIndex => $colText) {
+                    $colTextClean = trim((string) $colText);
+                    foreach ($aliases as $key => $keywords) {
+                        if (in_array($colTextClean, $keywords, true)) {
+                            $columnMap[$colIndex] = $key;
+                            if ($key === 'name') {
+                                $hasNameColumn = true;
+                            }
+                            break;
+                        }
+                    }
                 }
 
-                $groupName = $data['group'] ?? null;
-                $groupId = null;
-
-                if ($groupName) {
-                    $groupId = $groups[$groupName]
-                        ?? $wedding->guestGroups()->create(['name' => $groupName])->id;
-                    $groups[$groupName] = $groupId;
+                // If no column matched any header alias, the first row is actually data (headerless file)
+                if (count($columnMap) === 0) {
+                    array_unshift($rows, $header);
+                    $columnMap = [0 => 'name', 1 => 'phone', 2 => 'email', 3 => 'address', 4 => 'group', 5 => 'is_vip', 6 => 'note'];
+                    $hasNameColumn = true;
+                } elseif (! $hasNameColumn && isset($header[0])) {
+                    // Default column 0 to name if no explicit 'name' header was matched
+                    $columnMap[0] = 'name';
                 }
 
-                $wedding->guests()->create([
-                    'name' => $data['name'],
-                    'phone' => $data['phone'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'address' => $data['address'] ?? null,
-                    'note' => $data['note'] ?? null,
-                    'is_vip' => filter_var($data['is_vip'] ?? false, FILTER_VALIDATE_BOOLEAN),
-                    'guest_group_id' => $groupId,
-                ]);
+                $line = 1; // row 1 was header or first data line
 
-                $imported++;
-                $remaining--;
+                foreach ($rows as $row) {
+                    $line++;
+                    $sheetLabel = count($sheets) > 1 ? "Sheet \"{$rawSheetName}\", Line {$line}" : "Line {$line}";
+
+                    // Map row data using columnMap
+                    $data = [];
+                    foreach ($columnMap as $colIndex => $key) {
+                        $val = isset($row[$colIndex]) ? trim((string) $row[$colIndex]) : '';
+                        if ($val !== '') {
+                            $data[$key] = $val;
+                        }
+                    }
+
+                    $guestName = $data['name'] ?? null;
+
+                    if (! $guestName) {
+                        // Skip if blank row
+                        $isRowEmpty = count(array_filter($row, fn ($cell) => $cell !== null && trim((string) $cell) !== '')) === 0;
+                        if (! $isRowEmpty) {
+                            $skipped++;
+                            $errors[] = "{$sheetLabel}: missing guest name.";
+                        }
+
+                        continue;
+                    }
+
+                    if ($remaining <= 0) {
+                        $skipped++;
+                        $errors[] = "{$sheetLabel}: plan limit of {$limit} guests reached.";
+
+                        continue;
+                    }
+
+                    $groupName = $data['group'] ?? $defaultSheetGroup;
+                    $groupId = null;
+
+                    if ($groupName) {
+                        if (isset($groups[$groupName])) {
+                            $groupId = $groups[$groupName];
+                        } else {
+                            $newGroup = $wedding->guestGroups()->create(['name' => $groupName]);
+                            $groupId = $newGroup->id;
+                            $groups[$groupName] = $groupId;
+                        }
+                    }
+
+                    $wedding->guests()->create([
+                        'name' => $guestName,
+                        'phone' => $data['phone'] ?? null,
+                        'email' => $data['email'] ?? null,
+                        'address' => $data['address'] ?? null,
+                        'note' => $data['note'] ?? null,
+                        'is_vip' => filter_var($data['is_vip'] ?? false, FILTER_VALIDATE_BOOLEAN),
+                        'guest_group_id' => $groupId,
+                    ]);
+
+                    $imported++;
+                    $remaining--;
+                }
             }
         });
 
