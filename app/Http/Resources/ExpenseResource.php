@@ -18,6 +18,7 @@ class ExpenseResource extends JsonResource
             'item_name' => $this->item_name,
             'vendor' => $this->vendor,
             'amount' => (float) $this->amount,
+            'currency' => $this->currency ?? 'USD',
             'paid_amount' => (float) $this->paid_amount,
             'status' => $this->status,
             'note' => $this->note,

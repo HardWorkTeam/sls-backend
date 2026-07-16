@@ -18,6 +18,7 @@ class GiftResource extends JsonResource
             'guest_id' => $this->guest_id,
             'gift_type' => $this->gift_type,
             'amount' => $this->amount !== null ? (float) $this->amount : null,
+            'currency' => $this->currency ?? 'USD',
             'item_name' => $this->item_name,
             'note' => $this->note,
             'received_at' => $this->received_at?->toIso8601String(),
