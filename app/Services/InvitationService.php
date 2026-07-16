@@ -167,18 +167,26 @@ class InvitationService
         return $invitation;
     }
 
+    /**
+     * The clean public URL — guests use this to view the invitation.
+     * Only works for published invitations; unpublished ones will 404.
+     */
     public function publicUrl(Invitation $invitation): string
     {
         $base = rtrim(config('services.rsvp.url', 'http://localhost:3002'), '/');
 
-        $url = "{$base}/invite/{$invitation->invitation_code}";
+        return "{$base}/invite/{$invitation->invitation_code}";
+    }
 
-        if ($invitation->status !== InvitationStatus::Published->value) {
-            $token = hash_hmac('sha256', $invitation->invitation_code, (string) config('app.key'));
-            $url .= "?preview_token={$token}";
-        }
+    /**
+     * Preview URL with an HMAC token — always works regardless of publish status.
+     * Used by the editor iframe so the couple can see their draft in real time.
+     */
+    public function previewUrl(Invitation $invitation): string
+    {
+        $token = hash_hmac('sha256', $invitation->invitation_code, (string) config('app.key'));
 
-        return $url;
+        return $this->publicUrl($invitation) . "?preview_token={$token}";
     }
 
     /**

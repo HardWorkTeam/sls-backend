@@ -24,6 +24,7 @@ class InvitationResource extends JsonResource
             'status' => $this->status,
             'published_at' => $this->published_at?->toIso8601String(),
             'public_url' => app(InvitationService::class)->publicUrl($this->resource),
+            'preview_url' => app(InvitationService::class)->previewUrl($this->resource),
             'template' => $this->whenLoaded('template', fn () => $this->template ? [
                 'id' => $this->template->id,
                 'slug' => $this->template->slug,
