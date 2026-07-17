@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\ExpenseStatus;
 use App\Enums\GiftType;
 use App\Enums\GuestGroupType;
 use App\Enums\InvitationStatus;
@@ -11,7 +12,6 @@ use App\Enums\RsvpStatus;
 use App\Enums\SubscriptionStatus;
 use App\Enums\TimelineCategory;
 use App\Enums\WeddingStatus;
-use App\Enums\ExpenseStatus;
 use App\Models\InvitationTemplate;
 use App\Models\Package;
 use App\Models\Role;
@@ -151,8 +151,8 @@ class DemoWeddingSeeder extends Seeder
         while (count($guestRows) + count($generatedGuests) < $targetCount) {
             $fName = $familyNames[array_rand($familyNames)];
             $gName = $givenNames[array_rand($givenNames)];
-            $fullName = $fName . ' ' . $gName;
-            if (!in_array($fullName, $existingNames) && !in_array($fullName, $generatedGuests)) {
+            $fullName = $fName.' '.$gName;
+            if (! in_array($fullName, $existingNames) && ! in_array($fullName, $generatedGuests)) {
                 $generatedGuests[] = $fullName;
             }
         }
@@ -160,8 +160,8 @@ class DemoWeddingSeeder extends Seeder
         $groupNames = ['Family', 'Friends', 'VIP', 'Company'];
         foreach ($generatedGuests as $i => $name) {
             $groupName = $groupNames[$i % count($groupNames)];
-            $phone = '+855 ' . rand(10, 99) . ' ' . rand(100, 999) . ' ' . rand(100, 999);
-            $email = strtolower(str_replace(' ', '.', $name)) . '@example.com';
+            $phone = '+855 '.rand(10, 99).' '.rand(100, 999).' '.rand(100, 999);
+            $email = strtolower(str_replace(' ', '.', $name)).'@example.com';
             $isVip = ($groupName === 'VIP');
             $guestRows[] = [$name, $groupName, $phone, $email, 'Phnom Penh', null, $isVip];
         }
@@ -194,7 +194,7 @@ class DemoWeddingSeeder extends Seeder
             'Cannot wait to see the beautiful bride!',
             'Congratulations!',
             null,
-            null
+            null,
         ];
 
         $rsvpResponses = [
@@ -257,13 +257,13 @@ class DemoWeddingSeeder extends Seeder
                 $tableName = 'VIP Table 2';
                 $capacity = 10;
             } elseif ($t <= 6) {
-                $tableName = 'Family Table ' . ($t - 2);
+                $tableName = 'Family Table '.($t - 2);
                 $capacity = 10;
             } elseif ($t <= 11) {
-                $tableName = 'Friends Table ' . ($t - 6);
+                $tableName = 'Friends Table '.($t - 6);
                 $capacity = 10;
             } else {
-                $tableName = 'Company Table ' . ($t - 11);
+                $tableName = 'Company Table '.($t - 11);
                 $capacity = 10;
             }
             $tables[$tableName] = $wedding->tables()->updateOrCreate(
@@ -325,7 +325,7 @@ class DemoWeddingSeeder extends Seeder
             }
 
             $guestObj = $guests[$gName];
-            $gGroup = $groups->first(fn($g) => $g->id === $guestObj->guest_group_id)?->name;
+            $gGroup = $groups->first(fn ($g) => $g->id === $guestObj->guest_group_id)?->name;
 
             $matchedTable = null;
             foreach ($tables as $tName => $tObj) {
@@ -335,7 +335,7 @@ class DemoWeddingSeeder extends Seeder
                 }
             }
 
-            if (!$matchedTable) {
+            if (! $matchedTable) {
                 foreach ($tables as $tName => $tObj) {
                     if ($assignedSeats[$tName] < $tObj->capacity) {
                         $matchedTable = $tName;
@@ -377,7 +377,7 @@ class DemoWeddingSeeder extends Seeder
                     'currency' => $currency,
                     'item_name' => $item,
                     'note' => $note,
-                    'received_at' => now()->subDays(3)
+                    'received_at' => now()->subDays(3),
                 ],
             );
         }
@@ -404,7 +404,7 @@ class DemoWeddingSeeder extends Seeder
                     'amount' => $amount,
                     'currency' => $currency,
                     'note' => $note,
-                    'received_at' => now()->subDays(rand(1, 3))
+                    'received_at' => now()->subDays(rand(1, 3)),
                 ],
             );
             $additionalGiftCount--;
@@ -418,7 +418,7 @@ class DemoWeddingSeeder extends Seeder
                 'Traditional parade bringing gifts from the groom\'s family to the bride\'s house.',
                 now()->addDays(44)->setTime(8, 0),
                 'Bride\'s Family Villa, Toul Kork',
-                1
+                1,
             ],
             [
                 TimelineCategory::Engagement,
@@ -426,7 +426,7 @@ class DemoWeddingSeeder extends Seeder
                 'Paying respects to ancestors and exchanging wedding rings in front of families.',
                 now()->addDays(44)->setTime(10, 0),
                 'Bride\'s Family Villa, Toul Kork',
-                2
+                2,
             ],
             [
                 TimelineCategory::Ceremony,
@@ -434,7 +434,7 @@ class DemoWeddingSeeder extends Seeder
                 'Symbolic cleansing ceremony performed by parents and guests to bring good luck.',
                 now()->addDays(45)->setTime(8, 0),
                 'Wat Botum Park Hall, Phnom Penh',
-                3
+                3,
             ],
             [
                 TimelineCategory::Ceremony,
@@ -442,7 +442,7 @@ class DemoWeddingSeeder extends Seeder
                 'Buddhist monks chant blessings and sprinkle holy water on the couple for prosperity.',
                 now()->addDays(45)->setTime(9, 30),
                 'Wat Botum Park Hall, Phnom Penh',
-                4
+                4,
             ],
             [
                 TimelineCategory::Reception,
@@ -450,7 +450,7 @@ class DemoWeddingSeeder extends Seeder
                 'Banquet celebration, speeches, cake cutting, guest dining, and live band performance.',
                 now()->addDays(45)->setTime(17, 30),
                 'Sokha Hotel Grand Ballroom',
-                5
+                5,
             ],
             [
                 TimelineCategory::AfterParty,
@@ -458,7 +458,7 @@ class DemoWeddingSeeder extends Seeder
                 'DJ set, dancing, cocktails and late-night snacks with close friends.',
                 now()->addDays(45)->setTime(21, 30),
                 'Sokha Hotel Sky Bar',
-                6
+                6,
             ],
         ];
 
@@ -631,7 +631,7 @@ class DemoWeddingSeeder extends Seeder
                     'wedding_time' => $wData['wedding_time'],
                     'ceremony_venue' => $wData['ceremony_venue'],
                     'reception_venue' => $wData['reception_venue'],
-                    'google_map_link' => 'https://maps.google.com/?q=' . urlencode($wData['reception_venue']),
+                    'google_map_link' => 'https://maps.google.com/?q='.urlencode($wData['reception_venue']),
                     'story_description' => $wData['story'],
                     'status' => $wData['status'],
                     'published_at' => $wData['published_at'],
@@ -660,7 +660,7 @@ class DemoWeddingSeeder extends Seeder
                         ? SubscriptionStatus::Submitted->value
                         : SubscriptionStatus::Submitted->value,
                     'payment_method' => $wData['package'] === 'Free' ? null : 'aba',
-                    'payment_reference' => $wData['package'] === 'Free' ? null : 'DEMO-TXN-' . $wData['code'],
+                    'payment_reference' => $wData['package'] === 'Free' ? null : 'DEMO-TXN-'.$wData['code'],
                     'submitted_at' => now()->subDays(5),
                     'paid_at' => null,
                 ],
@@ -684,16 +684,16 @@ class DemoWeddingSeeder extends Seeder
             while (count($generatedNames) < $wData['guest_count']) {
                 $fName = $familyNames[array_rand($familyNames)];
                 $gName = $givenNames[array_rand($givenNames)];
-                $fullName = $fName . ' ' . $gName;
-                if (!in_array($fullName, $generatedNames)) {
+                $fullName = $fName.' '.$gName;
+                if (! in_array($fullName, $generatedNames)) {
                     $generatedNames[] = $fullName;
                 }
             }
 
             foreach ($generatedNames as $i => $name) {
                 $groupName = $groupNamesList[$i % 4];
-                $phone = '+855 ' . rand(10, 99) . ' ' . rand(100, 999) . ' ' . rand(100, 999);
-                $email = strtolower(str_replace(' ', '.', $name)) . '.' . strtolower(str_replace('WED-', '', $wData['code'])) . '@example.com';
+                $phone = '+855 '.rand(10, 99).' '.rand(100, 999).' '.rand(100, 999);
+                $email = strtolower(str_replace(' ', '.', $name)).'.'.strtolower(str_replace('WED-', '', $wData['code'])).'@example.com';
 
                 $guests[$name] = $wedding->guests()->updateOrCreate(
                     ['name' => $name],
@@ -735,7 +735,7 @@ class DemoWeddingSeeder extends Seeder
             $tableCount = max(1, (int) ceil($wData['guest_count'] / 10));
             $tables = [];
             for ($t = 1; $t <= $tableCount; $t++) {
-                $tName = 'Table ' . $t;
+                $tName = 'Table '.$t;
                 $tables[$tName] = $wedding->tables()->updateOrCreate(
                     ['table_name' => $tName],
                     ['table_number' => $t, 'capacity' => 10],

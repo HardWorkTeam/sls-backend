@@ -32,6 +32,7 @@ class PublicInvitationController extends Controller
             $invitation = $this->invitationService->findByCode($code);
             abort_unless((bool) $invitation, 404, 'Invitation not found.');
             $data = PublicInvitationResource::make($invitation)->resolve();
+
             return response()->json(['data' => $data]);
         }
 

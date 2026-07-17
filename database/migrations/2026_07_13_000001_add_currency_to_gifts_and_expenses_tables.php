@@ -8,13 +8,13 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasColumn('gifts', 'currency')) {
+        if (! Schema::hasColumn('gifts', 'currency')) {
             Schema::table('gifts', function (Blueprint $table) {
                 $table->string('currency', 3)->default('USD')->after('amount');
             });
         }
 
-        if (!Schema::hasColumn('expenses', 'currency')) {
+        if (! Schema::hasColumn('expenses', 'currency')) {
             Schema::table('expenses', function (Blueprint $table) {
                 $table->string('currency', 3)->default('USD')->after('amount');
             });

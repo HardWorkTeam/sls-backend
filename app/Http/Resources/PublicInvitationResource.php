@@ -15,7 +15,7 @@ class PublicInvitationResource extends JsonResource
     /**
      * Check if an image URL corresponds to a MediaItem that was set to non-public in the gallery.
      *
-     * @param array<int, string> $nonPublicPaths
+     * @param  array<int, string>  $nonPublicPaths
      */
     private function isMediaNonPublic(?string $url, array $nonPublicPaths): bool
     {
@@ -99,4 +99,3 @@ class PublicInvitationResource extends JsonResource
         ];
     }
 }
-

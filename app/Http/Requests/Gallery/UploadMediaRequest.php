@@ -4,6 +4,7 @@ namespace App\Http\Requests\Gallery;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\File;
 
 class UploadMediaRequest extends FormRequest
 {
@@ -22,8 +23,16 @@ class UploadMediaRequest extends FormRequest
         return [
             'file' => [
                 'required',
-                'file',
-                'max:51200',
+                File::types([
+                    'jpg',
+                    'jpeg',
+                    'png',
+                    'webp',
+                    'avif',
+                    'mp4',
+                    'webm',
+                    'mov',
+                ])->max(50 * 1024),
             ],
             'album_id' => [
                 'nullable',

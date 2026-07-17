@@ -19,13 +19,13 @@ class Excel
     /**
      * Build an XLSX binary string from a header row and data rows.
      *
-     * @param  list<string>          $headers   Column header labels.
-     * @param  list<list<mixed>>     $rows      Data rows (same column count as headers).
-     * @param  string                $sheetName Worksheet tab name.
+     * @param  list<string>  $headers  Column header labels.
+     * @param  list<list<mixed>>  $rows  Data rows (same column count as headers).
+     * @param  string  $sheetName  Worksheet tab name.
      */
     public static function build(array $headers, array $rows, string $sheetName = 'Sheet1'): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle(mb_substr($sheetName, 0, 31)); // Excel limits tab names to 31 chars.
 
@@ -34,7 +34,7 @@ class Excel
 
         // --- Write header row ---
         foreach ($headers as $i => $header) {
-            $cell = self::colLetter($i + 1) . '1';
+            $cell = self::colLetter($i + 1).'1';
             $sheet->setCellValue($cell, $header);
         }
 
@@ -61,7 +61,7 @@ class Excel
         foreach ($rows as $rowIndex => $row) {
             $excelRow = $rowIndex + 2; // row 1 = header, data starts at 2.
             foreach ($row as $colIndex => $value) {
-                $cell = self::colLetter($colIndex + 1) . $excelRow;
+                $cell = self::colLetter($colIndex + 1).$excelRow;
                 $sheet->setCellValue($cell, $value ?? '');
             }
         }
@@ -125,7 +125,7 @@ class Excel
      * - 'rows': list<list<string|null>>
      *
      * @return list<array{name: string, header: list<string>, rows: list<list<string|null>>}>|null
-     *         Null when the file cannot be read or contains no data.
+     *                                                                                             Null when the file cannot be read or contains no data.
      */
     public static function readSheets(string $filePath): ?array
     {
@@ -197,7 +197,7 @@ class Excel
      * data rows as plain arrays. Uses PhpSpreadsheet's IOFactory.
      *
      * @return array{header: list<string>, rows: list<list<string|null>>}|null
-     *         Null when the file cannot be read or is empty.
+     *                                                                         Null when the file cannot be read or is empty.
      */
     public static function readRows(string $filePath): ?array
     {
@@ -221,7 +221,7 @@ class Excel
         $letter = '';
         while ($col > 0) {
             $col--;
-            $letter = chr(65 + ($col % 26)) . $letter;
+            $letter = chr(65 + ($col % 26)).$letter;
             $col = intdiv($col, 26);
         }
 

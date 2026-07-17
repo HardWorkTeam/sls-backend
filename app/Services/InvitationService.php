@@ -186,7 +186,7 @@ class InvitationService
     {
         $token = hash_hmac('sha256', $invitation->invitation_code, (string) config('app.key'));
 
-        return $this->publicUrl($invitation) . "?preview_token={$token}";
+        return $this->publicUrl($invitation)."?preview_token={$token}";
     }
 
     /**

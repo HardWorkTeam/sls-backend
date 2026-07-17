@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Fix orphaned media items (album_id = null) by assigning them
  * to a default public "General Gallery" album per wedding,

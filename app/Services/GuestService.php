@@ -300,6 +300,7 @@ class GuestService
 
                     if (in_array($colTextLower, $sequenceAliases, true)) {
                         $columnMap[$colIndex] = '__seq__';
+
                         continue;
                     }
 
