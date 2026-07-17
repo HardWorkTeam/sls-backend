@@ -89,14 +89,54 @@ class InvitationService
     {
         $this->assertDesignCapacity($wedding, $attributes['invitation_template_id'] ?? null);
 
+        $settings = is_array($attributes['settings'] ?? null) ? $attributes['settings'] : [];
+        if (! array_key_exists('wedding_days', $settings)) {
+            $settings = $this->inheritWeddingDays($wedding, $settings);
+        }
+
         $attributes['wedding_id'] = $wedding->id;
         $attributes['invitation_code'] = $this->invitations->generateUniqueCode();
         $attributes['status'] = InvitationStatus::Draft->value;
+        $attributes['settings'] = $settings ?: null;
 
         /** @var Invitation $invitation */
         $invitation = $this->invitations->create($attributes);
 
         return $invitation->load('template');
+    }
+
+    /**
+     * Wedding days describe the wedding rather than a particular design. Carry
+     * them into additional invitations so a newly selected design is not blank.
+     *
+     * @param  array<string, mixed>  $settings
+     * @return array<string, mixed>
+     */
+    private function inheritWeddingDays(Wedding $wedding, array $settings): array
+    {
+        $sourceSettings = $wedding->invitations()
+            ->latest()
+            ->get(['settings'])
+            ->map(fn (Invitation $invitation) => $invitation->settings ?? [])
+            ->first(fn (array $candidate) => ! empty($candidate['wedding_days']));
+
+        if ($sourceSettings) {
+            $settings['wedding_days'] = $sourceSettings['wedding_days'];
+            $settings['main_wedding_day_index'] = $sourceSettings['main_wedding_day_index'] ?? 0;
+
+            return $settings;
+        }
+
+        if ($wedding->wedding_date) {
+            $settings['wedding_days'] = [[
+                'date' => $wedding->wedding_date->format('Y-m-d'),
+                'time' => $wedding->wedding_time ? substr($wedding->wedding_time, 0, 5) : '',
+                'venue' => $wedding->ceremony_venue ?? '',
+            ]];
+            $settings['main_wedding_day_index'] = 0;
+        }
+
+        return $settings;
     }
 
     /**
