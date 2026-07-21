@@ -18,6 +18,8 @@ use Illuminate\Support\Facades\DB;
  */
 class SubscriptionService
 {
+    public function __construct(private readonly TelegramNotifier $telegram) {}
+
     /**
      * The wedding's most recent subscription (with its package), or null.
      */
@@ -107,7 +109,7 @@ class SubscriptionService
      */
     public function submitPayment(Wedding $wedding, array $data): Subscription
     {
-        return DB::transaction(function () use ($wedding, $data) {
+        $subscription = DB::transaction(function () use ($wedding, $data) {
             $subscription = $wedding->subscriptions()
                 ->latest('id')
                 ->lockForUpdate()
@@ -126,6 +128,42 @@ class SubscriptionService
 
             return $subscription->load('package');
         });
+
+        // Best-effort admin alert — fired after the commit so we never notify on
+        // a rolled-back submit nor hold the row lock during the HTTP call.
+        $this->notifyPaymentSubmitted($wedding, $subscription);
+
+        return $subscription;
+    }
+
+    /**
+     * Alert the admin Telegram chat that a couple has submitted a payment
+     * awaiting confirmation. Never throws — the notifier swallows failures.
+     */
+    private function notifyPaymentSubmitted(Wedding $wedding, Subscription $subscription): void
+    {
+        $e = fn (?string $v) => TelegramNotifier::escape($v);
+
+        $couple = trim("{$wedding->bride_name} & {$wedding->groom_name}") ?: $wedding->wedding_name;
+        $email = $wedding->createdBy?->email;
+        $package = $subscription->package?->name;
+        $amount = number_format((float) $subscription->amount, 2).' '.$subscription->currency;
+        $adminUrl = rtrim((string) config('services.telegram.admin_url'), '/').'/payments';
+
+        $lines = [
+            '💳 <b>New payment submitted</b>',
+            '',
+            '<b>Couple:</b> '.$e($couple),
+            '<b>Account:</b> '.$e($email),
+            '<b>Package:</b> '.$e($package),
+            '<b>Amount:</b> '.$e($amount),
+            '<b>Method:</b> '.$e($subscription->payment_method),
+            '<b>Reference:</b> '.$e($subscription->payment_reference),
+            '',
+            '<a href="'.$e($adminUrl).'">Review in admin →</a>',
+        ];
+
+        $this->telegram->sendMessage(implode("\n", $lines));
     }
 
     /**

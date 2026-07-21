@@ -41,6 +41,16 @@ return [
         'api_secret' => env('CLOUDINARY_API_SECRET'),
     ],
 
+    // Telegram bot used to alert the admin team when a couple submits a manual
+    // package payment. Both values must be set for notifications to fire;
+    // otherwise the notifier is a silent no-op.
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+        'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+        // Admin dashboard base URL, used to deep-link the payments screen.
+        'admin_url' => env('ADMIN_APP_URL', 'http://localhost:3000'),
+    ],
+
     'rsvp' => [
         // Public RSVP website base URL, used for invitation links + QR codes.
         'url' => env('RSVP_APP_URL', 'http://localhost:3002'),
