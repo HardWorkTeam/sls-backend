@@ -47,6 +47,9 @@ return [
     'telegram' => [
         'bot_token' => env('TELEGRAM_BOT_TOKEN'),
         'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID'),
+        // Optional forum-topic (message thread) id inside the admin group. When
+        // set, messages post into that topic instead of the group's General.
+        'admin_topic_id' => env('TELEGRAM_ADMIN_TOPIC_ID'),
         // Admin dashboard base URL, used to deep-link the payments screen.
         'admin_url' => env('ADMIN_APP_URL', 'http://localhost:3000'),
     ],

@@ -20,19 +20,27 @@ class TelegramNotifier
     {
         $token = config('services.telegram.bot_token');
         $chatId = config('services.telegram.admin_chat_id');
+        $topicId = config('services.telegram.admin_topic_id');
 
         if (! $token || ! $chatId) {
             return false;
         }
 
+        $payload = [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'parse_mode' => 'HTML',
+            'disable_web_page_preview' => true,
+        ];
+
+        // Post into a specific forum topic when configured (General has no id).
+        if ($topicId !== null && $topicId !== '') {
+            $payload['message_thread_id'] = (int) $topicId;
+        }
+
         try {
             $response = Http::timeout(5)
-                ->post("https://api.telegram.org/bot{$token}/sendMessage", [
-                    'chat_id' => $chatId,
-                    'text' => $text,
-                    'parse_mode' => 'HTML',
-                    'disable_web_page_preview' => true,
-                ]);
+                ->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
 
             return $response->successful();
         } catch (\Throwable $e) {
