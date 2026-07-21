@@ -23,6 +23,7 @@ class GiftController extends Controller
                 $wedding,
                 $request->query('gift_type'),
                 (int) $request->query('per_page', '15'),
+                $request->query('search'),
             ),
         );
     }
