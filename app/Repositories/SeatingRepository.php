@@ -48,4 +48,22 @@ class SeatingRepository extends EloquentRepository
     {
         return GuestSeating::query()->where('wedding_table_id', $table->id)->count();
     }
+
+    /**
+     * Whether $seatNumber at $tableId is already held by a *different* guest.
+     * A null seat number is unnumbered seating and never conflicts. Excluding
+     * $guestId lets a guest keep (or re-save) the seat they already occupy.
+     */
+    public function seatNumberTaken(int $tableId, ?int $seatNumber, int $guestId): bool
+    {
+        if ($seatNumber === null) {
+            return false;
+        }
+
+        return GuestSeating::query()
+            ->where('wedding_table_id', $tableId)
+            ->where('seat_number', $seatNumber)
+            ->where('guest_id', '!=', $guestId)
+            ->exists();
+    }
 }

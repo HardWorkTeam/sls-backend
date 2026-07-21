@@ -89,6 +89,17 @@ class SeatingService
                 ]);
             }
 
+            // Guard the DB's (wedding_table_id, seat_number) unique constraint
+            // here so a taken seat surfaces as a clean 422 instead of a raw
+            // QueryException (500). The table row is locked above, so this
+            // check and the write below are serialized against concurrent
+            // assigns to the same table.
+            if ($this->seating->seatNumberTaken($table->id, $seatNumber, $guest->id)) {
+                throw ValidationException::withMessages([
+                    'seat_number' => ["Seat {$seatNumber} at table \"{$table->table_name}\" is already taken."],
+                ]);
+            }
+
             $this->seating->assign($wedding, $guest->id, $table->id, $seatNumber);
         });
     }

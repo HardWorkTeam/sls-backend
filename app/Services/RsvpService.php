@@ -61,11 +61,18 @@ class RsvpService
             // record two RSVPs and double-count the headcount. The lock is
             // transaction-scoped (auto-released) and keyed on the invitation +
             // the identity we dedupe on (phone when given, else name).
-            $identity = mb_strtolower(trim(($attributes['phone'] ?? null) ?: $attributes['guest_name']));
-            DB::select('select pg_advisory_xact_lock(?, ?)', [
-                $invitation->id,
-                (int) hexdec(substr(md5($identity), 0, 7)),
-            ]);
+            //
+            // Advisory locks are Postgres-specific; on any other driver (e.g.
+            // the SQLite test database) we skip the lock and rely on the
+            // surrounding transaction + the find-then-upsert below. Production
+            // runs on Postgres, so the concurrency guard is fully in effect there.
+            if (DB::connection()->getDriverName() === 'pgsql') {
+                $identity = mb_strtolower(trim(($attributes['phone'] ?? null) ?: $attributes['guest_name']));
+                DB::select('select pg_advisory_xact_lock(?, ?)', [
+                    $invitation->id,
+                    (int) hexdec(substr(md5($identity), 0, 7)),
+                ]);
+            }
 
             return $this->recordPublic($invitation, $attributes);
         });
