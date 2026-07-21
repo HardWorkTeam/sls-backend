@@ -153,6 +153,7 @@ class SubscriptionService
         $lines = [
             '💳 <b>New payment submitted</b>',
             '',
+            '<b>Wedding ID:</b> '.$e((string) $wedding->id),
             '<b>Couple:</b> '.$e($couple),
             '<b>Account:</b> '.$e($email),
             '<b>Package:</b> '.$e($package),
