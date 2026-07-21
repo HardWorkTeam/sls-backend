@@ -160,6 +160,7 @@ class SubscriptionService
             '<b>Amount:</b> '.$e($amount),
             '<b>Method:</b> '.$e($subscription->payment_method),
             '<b>Reference:</b> '.$e($subscription->payment_reference),
+            '<b>Submitted:</b> '.$e($subscription->submitted_at?->timezone('Asia/Phnom_Penh')->format('d M Y, H:i').' ICT'),
             '',
             '<a href="'.$e($adminUrl).'">Review in admin →</a>',
         ];
