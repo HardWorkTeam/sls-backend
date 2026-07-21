@@ -209,12 +209,18 @@ class SubscriptionService
 
     /**
      * Paginated subscriptions for the admin payments screen, newest first.
+     * An optional search matches the wedding's code so an admin can jump
+     * straight to a specific couple's payment.
      */
-    public function listForAdmin(?string $status, int $perPage): LengthAwarePaginator
+    public function listForAdmin(?string $status, ?string $search, int $perPage): LengthAwarePaginator
     {
         return Subscription::query()
             ->with(['package', 'wedding.createdBy'])
             ->when($status, fn (Builder $query) => $query->where('status', $status))
+            ->when($search, fn (Builder $query) => $query->whereHas(
+                'wedding',
+                fn (Builder $wedding) => $wedding->where('wedding_code', 'ilike', '%'.trim($search).'%'),
+            ))
             ->latest('id')
             ->paginate($perPage);
     }

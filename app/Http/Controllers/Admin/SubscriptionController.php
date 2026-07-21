@@ -19,6 +19,7 @@ class SubscriptionController extends Controller
     {
         $paginator = $this->subscriptions->listForAdmin(
             $request->query('status'),
+            $request->query('search'),
             (int) $request->query('per_page', '15'),
         );
 
