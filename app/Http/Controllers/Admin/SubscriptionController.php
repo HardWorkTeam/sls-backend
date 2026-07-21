@@ -35,4 +35,13 @@ class SubscriptionController extends Controller
             ),
         ]);
     }
+
+    public function revert(Subscription $subscription): JsonResponse
+    {
+        return response()->json([
+            'data' => SubscriptionResource::make(
+                $this->subscriptions->revertToSubmitted($subscription),
+            ),
+        ]);
+    }
 }

@@ -94,6 +94,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
             Route::get('/subscriptions', [AdminSubscriptionController::class, 'index']);
             Route::post('/subscriptions/{subscription}/confirm', [AdminSubscriptionController::class, 'confirm']);
+            Route::post('/subscriptions/{subscription}/revert', [AdminSubscriptionController::class, 'revert']);
         });
     });
 

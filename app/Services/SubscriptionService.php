@@ -208,6 +208,35 @@ class SubscriptionService
     }
 
     /**
+     * Send a paid payment back to the review queue (submitted). This undoes a
+     * mistaken confirmation without discarding the couple's payment claim, so
+     * the admin can re-review and confirm/reject it cleanly. Only a paid
+     * subscription can be reverted — a stale screen can never resurrect a
+     * rejected one or double-handle a still-pending one.
+     */
+    public function revertToSubmitted(Subscription $subscription): Subscription
+    {
+        return DB::transaction(function () use ($subscription) {
+            /** @var Subscription $subscription */
+            $subscription = Subscription::query()
+                ->whereKey($subscription->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            abort_unless(
+                $subscription->status === SubscriptionStatus::Paid,
+                422,
+                "Only a paid payment can be sent back to awaiting confirmation (this one is {$subscription->status->value}).",
+            );
+
+            $subscription->fill(['status' => SubscriptionStatus::Submitted->value, 'paid_at' => null]);
+            $subscription->save();
+
+            return $subscription->load(['package', 'wedding.createdBy']);
+        });
+    }
+
+    /**
      * Paginated subscriptions for the admin payments screen, newest first.
      * An optional search matches the wedding's code so an admin can jump
      * straight to a specific couple's payment.
