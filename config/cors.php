@@ -49,7 +49,9 @@ return [
         'X-XSRF-TOKEN',
     ],
 
-    'exposed_headers' => [],
+    // Downloads (guest export) carry their filename here; without exposing it
+    // the browser clients cannot read the server-chosen name.
+    'exposed_headers' => ['Content-Disposition'],
 
     'max_age' => 0,
 

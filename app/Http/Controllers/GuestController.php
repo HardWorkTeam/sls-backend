@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
+use Symfony\Component\HttpFoundation\HeaderUtils;
 
 class GuestController extends Controller
 {
@@ -92,13 +93,27 @@ class GuestController extends Controller
 
         $safeName = preg_replace('/[^\p{L}\p{N}\s\-_]/u', '', $wedding->wedding_name ?? '');
         $safeName = trim(preg_replace('/\s+/', '_', $safeName));
-        $filename = $safeName
-            ? "guests-{$safeName}-{$wedding->wedding_code}.xlsx"
-            : "guests-{$wedding->wedding_code}.xlsx";
+        $date = $wedding->wedding_date?->format('Y-m-d');
+
+        // Wedding name + date so a folder of downloads stays readable; the
+        // wedding code stands in when the name is empty.
+        $filename = implode('-', array_filter([
+            'guests',
+            $safeName !== '' ? $safeName : $wedding->wedding_code,
+            $date,
+        ])).'.xlsx';
+
+        // Khmer wedding names survive only in the RFC 5987 `filename*=` form,
+        // so hand the header to Symfony with an ASCII fallback for old clients.
+        $disposition = HeaderUtils::makeDisposition(
+            HeaderUtils::DISPOSITION_ATTACHMENT,
+            $filename,
+            implode('-', array_filter(['guests', $wedding->wedding_code, $date])).'.xlsx',
+        );
 
         return response($xlsx, 200, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Disposition' => $disposition,
         ]);
     }
 
