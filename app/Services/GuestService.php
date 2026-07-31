@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Guest;
 use App\Models\Wedding;
 use App\Repositories\GuestRepository;
-use App\Support\Csv;
 use App\Support\Excel;
 use App\Support\PlanCapabilities;
 use BaconQrCode\Renderer\Image\SvgImageBackEnd;
@@ -18,11 +17,10 @@ use Illuminate\Support\Facades\DB;
 
 class GuestService
 {
-    private const EXPORT_COLUMNS = [
-        'name', 'phone', 'email', 'address', 'group', 'table_number', 'seat_number', 'is_vip', 'note',
-    ];
-
-    public function __construct(private readonly GuestRepository $guests) {}
+    public function __construct(
+        private readonly GuestRepository $guests,
+        private readonly InvitationService $invitationService,
+    ) {}
 
     /**
      * @param  array{search?: string|null, guest_group_id?: int|null, is_vip?: bool|null}  $filters
@@ -475,6 +473,11 @@ class GuestService
     public function exportExcel(Wedding $wedding, array $filters = []): string
     {
         $guests = $this->guests->allForWedding($wedding, $filters);
+        // The invite-link column is the only consumer of the invitation, so it
+        // is loaded here rather than widening allForWedding for every caller.
+        $guests->loadMissing('invitation');
+
+        $canCheckIn = PlanCapabilities::forWedding($wedding)->checkin;
 
         $rows = [];
         foreach ($guests as $guest) {
@@ -488,13 +491,37 @@ class GuestService
                 $guest->seating?->seat_number,
                 $guest->is_vip ? 'Yes' : 'No',
                 $guest->note,
+                $this->inviteLink($guest, $canCheckIn),
             ];
         }
 
         return Excel::build(
-            ['Name', 'Phone', 'Email', 'Address', 'Group', 'Table Number', 'Seat Number', 'VIP', 'Note'],
+            ['Name', 'Phone', 'Email', 'Address', 'Group', 'Table Number', 'Seat Number', 'VIP', 'Note', 'Invite Link'],
             $rows,
             'Guests',
         );
+    }
+
+    /**
+     * Personal invitation link for one guest: the invitation's public URL plus
+     * `?to=` (greets them by name on the invite) and `?t=` (their short
+     * check-in code, which powers the "my check-in QR" pass). Null when no
+     * invitation is attached. Mirrors the per-guest copy button in the portal
+     * guest list — keep the two in step.
+     */
+    private function inviteLink(Guest $guest, bool $canCheckIn): ?string
+    {
+        if ($guest->invitation === null) {
+            return null;
+        }
+
+        $query = ['to' => $guest->name];
+
+        if ($canCheckIn && $guest->check_in_code) {
+            $query['t'] = $guest->check_in_code;
+        }
+
+        return $this->invitationService->publicUrl($guest->invitation)
+            .'?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
     }
 }

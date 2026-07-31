@@ -6,7 +6,6 @@ use App\Models\Wedding;
 use App\Models\WeddingTable;
 use App\Repositories\GuestRepository;
 use App\Repositories\SeatingRepository;
-use App\Support\Csv;
 use App\Support\Excel;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\UploadedFile;
@@ -15,10 +14,6 @@ use Illuminate\Validation\ValidationException;
 
 class SeatingService
 {
-    private const EXPORT_COLUMNS = [
-        'table_name', 'table_number', 'capacity', 'seated', 'guests',
-    ];
-
     public function __construct(
         private readonly SeatingRepository $seating,
         private readonly GuestRepository $guests,
