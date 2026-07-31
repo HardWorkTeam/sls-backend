@@ -473,8 +473,9 @@ class GuestService
     public function exportExcel(Wedding $wedding, array $filters = []): string
     {
         $guests = $this->guests->allForWedding($wedding, $filters);
-        // The invite-link column is the only consumer of the invitation, so it
-        // is loaded here rather than widening allForWedding for every caller.
+        // The invitation and invite-link columns are the only consumers of the
+        // invitation, so it is loaded here rather than widening allForWedding
+        // for every caller.
         $guests->loadMissing('invitation');
 
         $canCheckIn = PlanCapabilities::forWedding($wedding)->checkin;
@@ -483,20 +484,15 @@ class GuestService
         foreach ($guests as $guest) {
             $rows[] = [
                 $guest->name,
-                $guest->phone,
-                $guest->email,
-                $guest->address,
                 $guest->group?->name,
-                $guest->seating?->table?->table_number,
-                $guest->seating?->seat_number,
-                $guest->is_vip ? 'Yes' : 'No',
                 $guest->note,
+                $guest->invitation?->invitation_code,
                 $this->inviteLink($guest, $canCheckIn),
             ];
         }
 
         return Excel::build(
-            ['Name', 'Phone', 'Email', 'Address', 'Group', 'Table Number', 'Seat Number', 'VIP', 'Note', 'Invite Link'],
+            ['Name', 'Group', 'Note', 'Invitation', 'Invite Link'],
             $rows,
             'Guests',
         );
