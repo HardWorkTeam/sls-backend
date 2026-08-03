@@ -28,7 +28,8 @@ class UserRepository extends EloquentRepository
                         ->orWhere('email', 'ilike', "%{$search}%");
                 });
             })
-            ->orderBy('name')
+            ->latest()
+            ->latest('id')
             ->paginate($perPage);
     }
 }
