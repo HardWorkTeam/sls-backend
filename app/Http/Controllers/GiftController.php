@@ -37,8 +37,6 @@ class GiftController extends Controller
 
     public function update(UpdateGiftRequest $request, Wedding $wedding, Gift $gift): GiftResource
     {
-        abort_unless($gift->wedding_id === $wedding->id, 404);
-
         $gift->update($request->validated());
 
         return GiftResource::make($gift->load('guest'));
@@ -46,8 +44,6 @@ class GiftController extends Controller
 
     public function destroy(Wedding $wedding, Gift $gift): JsonResponse
     {
-        abort_unless($gift->wedding_id === $wedding->id, 404);
-
         $gift->delete();
 
         return response()->json(['message' => 'Gift deleted.']);

@@ -163,10 +163,14 @@ class WeddingService
         return ['member' => $member, 'temp_password' => $tempPassword];
     }
 
-    public function removeMember(Wedding $wedding, WeddingMember $member): void
+    /**
+     * The member is resolved through the wedding's own relation by the scoped
+     * route binding (see routes/api.php), so it is already known to belong to
+     * this wedding — same contract as every other service here, which take an
+     * already-bound model.
+     */
+    public function removeMember(WeddingMember $member): void
     {
-        abort_unless($member->wedding_id === $wedding->id, 404);
-
         $member->delete();
     }
 

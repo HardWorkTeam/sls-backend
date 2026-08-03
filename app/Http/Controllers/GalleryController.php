@@ -33,15 +33,11 @@ class GalleryController extends Controller
 
     public function updateAlbum(UpdateAlbumRequest $request, Wedding $wedding, Album $album): AlbumResource
     {
-        abort_unless($album->wedding_id === $wedding->id, 404);
-
         return AlbumResource::make($this->galleryService->updateAlbum($album, $request->validated()));
     }
 
     public function destroyAlbum(Wedding $wedding, Album $album): JsonResponse
     {
-        abort_unless($album->wedding_id === $wedding->id, 404);
-
         $this->galleryService->deleteAlbum($album);
 
         return response()->json(['message' => 'Album deleted.']);
@@ -74,8 +70,6 @@ class GalleryController extends Controller
 
     public function updateMedia(Request $request, Wedding $wedding, MediaItem $mediaItem): MediaItemResource
     {
-        abort_unless($mediaItem->wedding_id === $wedding->id, 404);
-
         return MediaItemResource::make(
             $this->galleryService->updateMedia($mediaItem, $request->boolean('is_public')),
         );
@@ -83,8 +77,6 @@ class GalleryController extends Controller
 
     public function destroyMedia(Wedding $wedding, MediaItem $mediaItem): JsonResponse
     {
-        abort_unless($mediaItem->wedding_id === $wedding->id, 404);
-
         $this->galleryService->deleteMedia($mediaItem);
 
         return response()->json(['message' => 'Media deleted.']);

@@ -2,7 +2,6 @@
 
 namespace App\Support;
 
-use App\Enums\SubscriptionStatus;
 use App\Models\Package;
 use App\Models\Wedding;
 
@@ -50,11 +49,13 @@ class PlanCapabilities
      */
     public static function forWedding(Wedding $wedding): self
     {
-        $paid = $wedding->subscriptions()
-            ->where('status', SubscriptionStatus::Paid->value)
-            ->with('package')
-            ->latest('id')
-            ->first();
+        // Resolved through the `paidSubscription` relation rather than a fresh
+        // query, so the several capability checks a single request performs
+        // (plan.module middleware, then the service that enforces the plan's
+        // limits) share one load instead of hitting the database each time.
+        $wedding->loadMissing('paidSubscription.package');
+
+        $paid = $wedding->paidSubscription;
 
         return self::forPaidPackage($paid?->package, $paid !== null);
     }

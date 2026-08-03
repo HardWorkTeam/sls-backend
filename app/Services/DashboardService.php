@@ -84,7 +84,14 @@ class DashboardService
      */
     public function overview(User $user): array
     {
-        $weddingIds = $this->weddings->visibleTo($user)->pluck('id');
+        // Kept as a subquery rather than `->pluck('id')`. Plucking loads every
+        // visible wedding id into PHP and then ships them back as bind
+        // parameters on each of the five queries below — for a super admin
+        // that is the entire platform, and Postgres caps a statement at 65535
+        // binds, so it breaks outright once the platform grows. As a subquery
+        // the ids never leave the database.
+        $visibleWeddings = $this->weddings->visibleTo($user);
+        $weddingIds = (clone $visibleWeddings)->select('weddings.id');
 
         $totalGuests = Guest::query()->whereIn('wedding_id', $weddingIds)->count();
 
@@ -97,8 +104,9 @@ class DashboardService
         $totalRsvp = (int) $rsvpByStatus->sum();
         $confirmed = (int) ($rsvpByStatus[RsvpStatus::Accepted->value] ?? 0);
 
-        $weddingsByStatus = Wedding::query()
-            ->whereIn('id', $weddingIds)
+        // Grouped straight off the visibility query — no need to re-select
+        // weddings by an id list drawn from weddings.
+        $weddingsByStatus = (clone $visibleWeddings)
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
@@ -123,7 +131,7 @@ class DashboardService
 
         return [
             'cards' => [
-                'total_weddings' => $weddingIds->count(),
+                'total_weddings' => (clone $visibleWeddings)->count(),
                 'total_guests' => $totalGuests,
                 'total_rsvp' => $totalRsvp,
                 'attendance_rate' => $totalRsvp > 0

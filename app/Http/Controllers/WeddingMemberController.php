@@ -41,7 +41,7 @@ class WeddingMemberController extends Controller
 
     public function destroy(Wedding $wedding, WeddingMember $member): JsonResponse
     {
-        $this->weddingService->removeMember($wedding, $member);
+        $this->weddingService->removeMember($member);
 
         return response()->json(['message' => 'Member removed.']);
     }

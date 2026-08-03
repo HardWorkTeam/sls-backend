@@ -104,7 +104,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/weddings', [WeddingController::class, 'store'])
         ->middleware('role:couple');
 
-    Route::prefix('weddings/{wedding}')->middleware('wedding.access')->group(function () {
+    // `scopeBindings()` resolves every nested {model} through its parent
+    // wedding's relation (e.g. `$wedding->guests()->findOrFail($id)`), so a
+    // record from another wedding 404s during binding instead of relying on
+    // each controller action to re-check `wedding_id` by hand. Route parameter
+    // names must match the relation Laravel infers from them —
+    // {guestGroup} → guestGroups(), {timelineEvent} → timelineEvents(),
+    // {rsvpResponse} → rsvpResponses(), {table} → tables(), and so on.
+    Route::prefix('weddings/{wedding}')->middleware('wedding.access')->scopeBindings()->group(function () {
         Route::get('/', [WeddingController::class, 'show']);
         Route::put('/', [WeddingController::class, 'update']);
         Route::delete('/', [WeddingController::class, 'destroy'])
@@ -138,8 +145,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/guest-groups', [GuestGroupController::class, 'index']);
         Route::post('/guest-groups', [GuestGroupController::class, 'store']);
-        Route::put('/guest-groups/{group}', [GuestGroupController::class, 'update']);
-        Route::delete('/guest-groups/{group}', [GuestGroupController::class, 'destroy']);
+        Route::put('/guest-groups/{guestGroup}', [GuestGroupController::class, 'update']);
+        Route::delete('/guest-groups/{guestGroup}', [GuestGroupController::class, 'destroy']);
 
         Route::get('/guests', [GuestController::class, 'index']);
         Route::post('/guests', [GuestController::class, 'store']);
@@ -165,8 +172,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('plan.module:rsvp')->group(function () {
             Route::get('/rsvps', [RsvpController::class, 'index']);
             Route::get('/rsvps/stats', [RsvpController::class, 'stats']);
-            Route::put('/rsvps/{rsvp}', [RsvpController::class, 'update']);
-            Route::delete('/rsvps/{rsvp}', [RsvpController::class, 'destroy']);
+            Route::put('/rsvps/{rsvpResponse}', [RsvpController::class, 'update']);
+            Route::delete('/rsvps/{rsvpResponse}', [RsvpController::class, 'destroy']);
         });
 
         // Seating planner — gated to plans that include it (Premium+).
@@ -205,8 +212,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('plan.module:timeline')->group(function () {
             Route::get('/timeline-events', [TimelineEventController::class, 'index']);
             Route::post('/timeline-events', [TimelineEventController::class, 'store']);
-            Route::put('/timeline-events/{event}', [TimelineEventController::class, 'update']);
-            Route::delete('/timeline-events/{event}', [TimelineEventController::class, 'destroy']);
+            Route::put('/timeline-events/{timelineEvent}', [TimelineEventController::class, 'update']);
+            Route::delete('/timeline-events/{timelineEvent}', [TimelineEventController::class, 'destroy']);
         });
 
         // Photo gallery — gated to plans that include it (Premium+).

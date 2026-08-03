@@ -30,20 +30,16 @@ class TimelineEventController extends Controller
         return TimelineEventResource::make($event)->response()->setStatusCode(201);
     }
 
-    public function update(UpdateTimelineEventRequest $request, Wedding $wedding, TimelineEvent $event): TimelineEventResource
+    public function update(UpdateTimelineEventRequest $request, Wedding $wedding, TimelineEvent $timelineEvent): TimelineEventResource
     {
-        abort_unless($event->wedding_id === $wedding->id, 404);
+        $timelineEvent->update($request->validated());
 
-        $event->update($request->validated());
-
-        return TimelineEventResource::make($event);
+        return TimelineEventResource::make($timelineEvent);
     }
 
-    public function destroy(Wedding $wedding, TimelineEvent $event): JsonResponse
+    public function destroy(Wedding $wedding, TimelineEvent $timelineEvent): JsonResponse
     {
-        abort_unless($event->wedding_id === $wedding->id, 404);
-
-        $event->delete();
+        $timelineEvent->delete();
 
         return response()->json(['message' => 'Timeline event deleted.']);
     }

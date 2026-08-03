@@ -45,15 +45,11 @@ class GuestController extends Controller
 
     public function update(UpdateGuestRequest $request, Wedding $wedding, Guest $guest): GuestResource
     {
-        abort_unless($guest->wedding_id === $wedding->id, 404);
-
         return GuestResource::make($this->guestService->update($guest, $request->validated()));
     }
 
     public function destroy(Wedding $wedding, Guest $guest): JsonResponse
     {
-        abort_unless($guest->wedding_id === $wedding->id, 404);
-
         $this->guestService->delete($guest);
 
         return response()->json(['message' => 'Guest deleted.']);
@@ -134,8 +130,6 @@ class GuestController extends Controller
      */
     public function qrCode(Wedding $wedding, Guest $guest): Response
     {
-        abort_unless($guest->wedding_id === $wedding->id, 404);
-
         return response($this->guestService->qrCodeSvg($guest), 200, [
             'Content-Type' => 'image/svg+xml',
             'Content-Disposition' => "inline; filename=\"guest-{$guest->id}-qr.svg\"",
@@ -161,8 +155,6 @@ class GuestController extends Controller
      */
     public function setCheckIn(Wedding $wedding, Guest $guest, Request $request): GuestResource
     {
-        abort_unless($guest->wedding_id === $wedding->id, 404);
-
         return GuestResource::make(
             $this->guestService->setCheckIn($guest, $request->boolean('arrived', true)),
         );

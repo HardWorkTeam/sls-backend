@@ -33,15 +33,11 @@ class SeatingController extends Controller
 
     public function updateTable(UpdateTableRequest $request, Wedding $wedding, WeddingTable $table): WeddingTableResource
     {
-        abort_unless($table->wedding_id === $wedding->id, 404);
-
         return WeddingTableResource::make($this->seatingService->updateTable($table, $request->validated()));
     }
 
     public function destroyTable(Wedding $wedding, WeddingTable $table): JsonResponse
     {
-        abort_unless($table->wedding_id === $wedding->id, 404);
-
         $this->seatingService->deleteTable($table);
 
         return response()->json(['message' => 'Table deleted.']);

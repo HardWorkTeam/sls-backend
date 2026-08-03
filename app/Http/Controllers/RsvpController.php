@@ -32,18 +32,14 @@ class RsvpController extends Controller
         return response()->json(['data' => $this->rsvpService->stats($wedding)]);
     }
 
-    public function update(UpdateRsvpRequest $request, Wedding $wedding, RsvpResponse $rsvp): RsvpResponseResource
+    public function update(UpdateRsvpRequest $request, Wedding $wedding, RsvpResponse $rsvpResponse): RsvpResponseResource
     {
-        abort_unless($rsvp->wedding_id === $wedding->id, 404);
-
-        return RsvpResponseResource::make($this->rsvpService->update($rsvp, $request->validated()));
+        return RsvpResponseResource::make($this->rsvpService->update($rsvpResponse, $request->validated()));
     }
 
-    public function destroy(Wedding $wedding, RsvpResponse $rsvp): JsonResponse
+    public function destroy(Wedding $wedding, RsvpResponse $rsvpResponse): JsonResponse
     {
-        abort_unless($rsvp->wedding_id === $wedding->id, 404);
-
-        $this->rsvpService->delete($rsvp);
+        $this->rsvpService->delete($rsvpResponse);
 
         return response()->json(['message' => 'RSVP response deleted.']);
     }

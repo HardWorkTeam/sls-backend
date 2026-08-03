@@ -30,8 +30,6 @@ class InvitationController extends Controller
 
     public function show(Wedding $wedding, Invitation $invitation): InvitationResource
     {
-        $this->ensureBelongsToWedding($wedding, $invitation);
-
         return InvitationResource::make(
             $invitation->load('template')->loadCount(['guests', 'rsvpResponses']),
         );
@@ -39,8 +37,6 @@ class InvitationController extends Controller
 
     public function update(UpdateInvitationRequest $request, Wedding $wedding, Invitation $invitation): InvitationResource
     {
-        $this->ensureBelongsToWedding($wedding, $invitation);
-
         return InvitationResource::make(
             $this->invitationService->update($invitation, $request->validated()),
         );
@@ -48,7 +44,6 @@ class InvitationController extends Controller
 
     public function destroy(Wedding $wedding, Invitation $invitation): JsonResponse
     {
-        $this->ensureBelongsToWedding($wedding, $invitation);
         $this->invitationService->delete($invitation);
 
         return response()->json(['message' => 'Invitation deleted.']);
@@ -56,30 +51,19 @@ class InvitationController extends Controller
 
     public function publish(Wedding $wedding, Invitation $invitation): InvitationResource
     {
-        $this->ensureBelongsToWedding($wedding, $invitation);
-
         return InvitationResource::make($this->invitationService->publish($invitation));
     }
 
     public function unpublish(Wedding $wedding, Invitation $invitation): InvitationResource
     {
-        $this->ensureBelongsToWedding($wedding, $invitation);
-
         return InvitationResource::make($this->invitationService->unpublish($invitation));
     }
 
     public function qrCode(Wedding $wedding, Invitation $invitation): Response
     {
-        $this->ensureBelongsToWedding($wedding, $invitation);
-
         return response($this->invitationService->qrCodeSvg($invitation), 200, [
             'Content-Type' => 'image/svg+xml',
             'Content-Disposition' => "inline; filename=\"invitation-{$invitation->invitation_code}.svg\"",
         ]);
-    }
-
-    private function ensureBelongsToWedding(Wedding $wedding, Invitation $invitation): void
-    {
-        abort_unless($invitation->wedding_id === $wedding->id, 404);
     }
 }

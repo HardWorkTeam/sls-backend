@@ -26,20 +26,16 @@ class GuestGroupController extends Controller
         return GuestGroupResource::make($group)->response()->setStatusCode(201);
     }
 
-    public function update(UpdateGuestGroupRequest $request, Wedding $wedding, GuestGroup $group): GuestGroupResource
+    public function update(UpdateGuestGroupRequest $request, Wedding $wedding, GuestGroup $guestGroup): GuestGroupResource
     {
-        abort_unless($group->wedding_id === $wedding->id, 404);
+        $guestGroup->update($request->validated());
 
-        $group->update($request->validated());
-
-        return GuestGroupResource::make($group->loadCount('guests'));
+        return GuestGroupResource::make($guestGroup->loadCount('guests'));
     }
 
-    public function destroy(Wedding $wedding, GuestGroup $group): JsonResponse
+    public function destroy(Wedding $wedding, GuestGroup $guestGroup): JsonResponse
     {
-        abort_unless($group->wedding_id === $wedding->id, 404);
-
-        $group->delete();
+        $guestGroup->delete();
 
         return response()->json(['message' => 'Guest group deleted.']);
     }

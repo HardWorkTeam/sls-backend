@@ -36,8 +36,6 @@ class ExpenseController extends Controller
 
     public function update(UpdateExpenseRequest $request, Wedding $wedding, Expense $expense): ExpenseResource
     {
-        abort_unless($expense->wedding_id === $wedding->id, 404);
-
         $expense->update($request->validated());
 
         return ExpenseResource::make($expense);
@@ -45,8 +43,6 @@ class ExpenseController extends Controller
 
     public function destroy(Wedding $wedding, Expense $expense): JsonResponse
     {
-        abort_unless($expense->wedding_id === $wedding->id, 404);
-
         $expense->delete();
 
         return response()->json(['message' => 'Expense deleted.']);

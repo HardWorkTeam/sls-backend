@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Enums\SubscriptionStatus;
+use App\Support\PlanCapabilities;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 #[Fillable([
@@ -54,6 +58,23 @@ class Wedding extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * The wedding's most recent PAID subscription — the one that decides what
+     * the wedding is allowed to do (see {@see PlanCapabilities}).
+     *
+     * Modelled as a relation rather than an ad-hoc query so Eloquent's own
+     * relation cache applies: the plan is consulted several times per request
+     * (the plan.module middleware, then again inside the services), and each
+     * of those used to be a fresh round trip to Postgres.
+     */
+    public function paidSubscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)->ofMany(
+            ['id' => 'max'],
+            fn (Builder $query) => $query->where('status', SubscriptionStatus::Paid->value),
+        );
     }
 
     public function createdBy(): BelongsTo

@@ -19,6 +19,16 @@ use Illuminate\Support\Facades\Storage;
 
 class InvitationService
 {
+    /**
+     * Invitation codes whose RSVP-site cache entry still needs invalidating.
+     * Held as a set so a wedding-wide flush pings each code once.
+     *
+     * @var array<string, true>
+     */
+    private array $pendingRevalidations = [];
+
+    private bool $revalidationScheduled = false;
+
     public function __construct(
         private readonly InvitationRepository $invitations,
         private readonly GalleryService $galleryService,
@@ -34,7 +44,7 @@ class InvitationService
     private function forgetPublicCache(Invitation $invitation): void
     {
         Cache::forget(self::publicCacheKey($invitation->invitation_code));
-        $this->pingRsvpRevalidate($invitation->invitation_code);
+        $this->queueRsvpRevalidate($invitation->invitation_code);
     }
 
     /**
@@ -46,16 +56,48 @@ class InvitationService
     {
         foreach ($wedding->invitations()->pluck('invitation_code') as $code) {
             Cache::forget(self::publicCacheKey((string) $code));
-            $this->pingRsvpRevalidate((string) $code);
+            $this->queueRsvpRevalidate((string) $code);
         }
     }
 
     /**
      * Best-effort: tell the RSVP site to drop its Next.js Data Cache entry for
-     * this code so edits appear immediately rather than after the TTL. Disabled
-     * when no secret is configured; failures are swallowed (the TTL is the
-     * safety net) so a couple's save never fails because the site is down.
+     * this code so edits appear immediately rather than after the TTL.
+     *
+     * The ping is an outbound HTTP call to another host, so it runs once the
+     * response has been sent rather than inside the couple's save — a wedding
+     * with several invitations otherwise paid for one round trip per code, in
+     * series, before it saw its own save confirmed. Our own cache above is
+     * still cleared synchronously, so the API can never serve a stale payload;
+     * this only shortens how long the RSVP site's copy lags. Disabled when no
+     * secret is configured; failures are swallowed (the TTL is the safety net)
+     * so a couple's save never fails because the site is down.
      */
+    private function queueRsvpRevalidate(string $code): void
+    {
+        if (! config('services.rsvp.revalidate_secret')) {
+            return;
+        }
+
+        $this->pendingRevalidations[$code] = true;
+
+        if ($this->revalidationScheduled) {
+            return;
+        }
+
+        $this->revalidationScheduled = true;
+
+        app()->terminating(function (): void {
+            $codes = array_keys($this->pendingRevalidations);
+            $this->pendingRevalidations = [];
+            $this->revalidationScheduled = false;
+
+            foreach ($codes as $code) {
+                $this->pingRsvpRevalidate($code);
+            }
+        });
+    }
+
     private function pingRsvpRevalidate(string $code): void
     {
         $secret = config('services.rsvp.revalidate_secret');
