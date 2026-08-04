@@ -20,12 +20,13 @@ class AuthService
     public function __construct(private readonly UserService $users) {}
 
     /**
-     * Self-service registration: creates a couple account and signs them in.
+     * Self-service registration: creates an unverified couple account and
+     * emails a verification link. The user cannot sign in until it is used.
      *
      * @param  array{name: string, email: string, password: string}  $attributes
-     * @return array{user: User, token: string}
+     * @return array{user: User}
      */
-    public function register(array $attributes, ?string $deviceName = null): array
+    public function register(array $attributes): array
     {
         $user = $this->users->create([
             'name' => $attributes['name'],
@@ -34,9 +35,10 @@ class AuthService
             'is_active' => true,
         ], [RoleKey::Couple->value]);
 
+        $user->sendEmailVerificationNotification();
+
         return [
             'user' => $user->load('roles.permissions'),
-            'token' => $this->issueToken($user, $deviceName),
         ];
     }
 
@@ -61,6 +63,12 @@ class AuthService
 
         if (! $user->is_active) {
             throw new AuthenticationException('This account has been deactivated.');
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            throw ValidationException::withMessages([
+                'email' => ['Please verify your email address before logging in.'],
+            ]);
         }
 
         $this->assertPortalAccess($user, $portal);
@@ -158,6 +166,16 @@ class AuthService
         $user->tokens()
             ->when($currentTokenId, fn ($query) => $query->whereKeyNot($currentTokenId))
             ->delete();
+    }
+
+    /** Send a verification link without revealing whether an address is registered. */
+    public function resendEmailVerification(string $email): void
+    {
+        $user = User::query()->where('email', $email)->first();
+
+        if ($user && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
     }
 
     /**

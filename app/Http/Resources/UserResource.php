@@ -19,6 +19,7 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'avatar_path' => $this->avatar_path,
             'is_active' => $this->is_active,
+            'email_verified_at' => $this->email_verified_at?->toIso8601String(),
             'roles' => RoleResource::collection($this->whenLoaded('roles')),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),

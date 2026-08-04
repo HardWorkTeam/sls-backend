@@ -9,8 +9,10 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\UserResource;
+use App\Models\User;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -19,14 +21,10 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        $result = $this->authService->register(
-            $request->validated(),
-            $request->validated('device_name'),
-        );
+        $result = $this->authService->register($request->validated());
 
         return response()->json([
-            'message' => 'Account created.',
-            'token' => $result['token'],
+            'message' => 'Account created. Please check your email to verify your address before logging in.',
             'user' => UserResource::make($result['user']),
         ], 201);
     }
@@ -113,5 +111,28 @@ class AuthController extends Controller
         $this->authService->resetPassword($request->only('token', 'email', 'password', 'password_confirmation'));
 
         return response()->json(['message' => 'Password has been reset.']);
+    }
+
+    public function verifyEmail(Request $request, int $id, string $hash): RedirectResponse
+    {
+        $user = User::query()->findOrFail($id);
+
+        abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        return redirect()->to(rtrim((string) config('services.client.url'), '/').'/verify-email?verified=1');
+    }
+
+    public function resendEmailVerification(Request $request): JsonResponse
+    {
+        $request->validate(['email' => ['required', 'email']]);
+        $this->authService->resendEmailVerification($request->string('email')->toString());
+
+        return response()->json([
+            'message' => 'If this address needs verification, a new link has been sent.',
+        ]);
     }
 }

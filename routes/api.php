@@ -39,6 +39,10 @@ Route::post('/auth/register', [AuthController::class, 'register'])->middleware('
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
+Route::post('/auth/email/resend', [AuthController::class, 'resendEmailVerification'])->middleware('throttle:auth');
+Route::get('/auth/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+    ->middleware(['signed', 'throttle:6,1'])
+    ->name('verification.verify');
 
 Route::prefix('public')->group(function () {
     Route::get('/invitations/{code}', [PublicInvitationController::class, 'show']);
