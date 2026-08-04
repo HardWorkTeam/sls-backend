@@ -37,8 +37,13 @@ return [
         // Optional forum-topic (message thread) id inside the admin group. When
         // set, messages post into that topic instead of the group's General.
         'admin_topic_id' => env('TELEGRAM_ADMIN_TOPIC_ID'),
+        // Wedding-day alerts use their own forum topic so they do not mix with
+        // payment-review messages. Defaults to the team's Wedding Days topic.
+        'wedding_alert_topic_id' => env('TELEGRAM_WEDDING_ALERT_TOPIC_ID', 85),
         // Admin dashboard base URL, used to deep-link the payments screen.
         'admin_url' => env('ADMIN_APP_URL', 'http://localhost:3000'),
+        'wedding_alert_timezone' => env('TELEGRAM_WEDDING_ALERT_TIMEZONE', 'Asia/Phnom_Penh'),
+        'wedding_alert_send_at' => env('TELEGRAM_WEDDING_ALERT_SEND_AT', '08:00'),
     ],
 
     'rsvp' => [
