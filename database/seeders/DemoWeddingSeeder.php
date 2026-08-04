@@ -83,7 +83,11 @@ class DemoWeddingSeeder extends Seeder
                     ],
                     'invitation_text_kh' => 'មានកិត្តិយសសូមគោរពអញ្ជើញ ចូលរួមជាភ្ញៀវកិត្តិយស',
                     'invitation_text_en' => 'CORDIALLY REQUEST THE HONOR OF YOUR PRESENCE',
-                    'gallery_urls' => [],
+                    'gallery_urls' => [
+                        '/storage/demo/weddings/wed-demo01/pre-wedding-1.jpg',
+                        '/storage/demo/weddings/wed-demo01/pre-wedding-2.jpg',
+                        '/storage/demo/weddings/wed-demo01/pre-wedding-3.jpg',
+                    ],
                     'bank_account' => [
                         'bank' => 'ABA Bank',
                         'name' => 'Sophea Chan',
@@ -476,10 +480,31 @@ class DemoWeddingSeeder extends Seeder
             );
         }
 
-        $wedding->albums()->updateOrCreate(
+        $preWeddingAlbum = $wedding->albums()->updateOrCreate(
             ['name' => 'Pre-Wedding Shoot'],
             ['description' => 'Photos from the couple\'s pre-wedding session.', 'is_public' => true],
         );
+
+        foreach ([
+            ['pre-wedding-1.jpg', 'Apsara-inspired portrait at the Royal Palace gardens'],
+            ['pre-wedding-2.jpg', 'Traditional Khmer silk outfits at sunset'],
+            ['pre-wedding-3.jpg', 'Couple portrait beside lotus flowers'],
+        ] as $index => [$fileName, $caption]) {
+            $wedding->mediaItems()->updateOrCreate(
+                ['storage_path' => 'demo/weddings/wed-demo01/'.$fileName],
+                [
+                    'album_id' => $preWeddingAlbum->id,
+                    'uploaded_by_user_id' => $bride->id,
+                    'media_type' => 'image',
+                    'thumbnail_path' => 'demo/weddings/wed-demo01/thumbnails/'.$fileName,
+                    'original_name' => $caption.'.jpg',
+                    'mime_type' => 'image/jpeg',
+                    'size_bytes' => 1800000 + ($index * 125000),
+                    'is_public' => true,
+                    'taken_at' => now()->subDays(35 - $index),
+                ],
+            );
+        }
 
         Subscription::query()->updateOrCreate(
             ['wedding_id' => $wedding->id],
@@ -487,11 +512,11 @@ class DemoWeddingSeeder extends Seeder
                 'package_id' => $wedding->package_id,
                 'amount' => Package::query()->whereKey($wedding->package_id)->value('price'),
                 'currency' => 'USD',
-                'status' => SubscriptionStatus::Submitted->value,
+                'status' => SubscriptionStatus::Paid->value,
                 'payment_method' => 'aba',
                 'payment_reference' => 'DEMO-TXN-0001',
                 'submitted_at' => now()->subDays(2),
-                'paid_at' => null,
+                'paid_at' => now()->subDays(1),
             ],
         );
 
@@ -553,6 +578,12 @@ class DemoWeddingSeeder extends Seeder
                 'package' => 'Free',
                 'guest_count' => 25,
                 'story' => 'High school sweethearts from Battambang. After finishing university, they returned home to plan a modest family gathering.',
+                'template' => 'angkor-heritage-v1',
+                'invitation_code' => 'BOPHA2026',
+                'address' => 'Svay Por, Krong Battambang',
+                'parents' => ['Lim Chansok & Keo Sreyleak', 'Hak Vireak & Chhim Bopha'],
+                'bride_name_kh' => 'លឹម បុប្ផា',
+                'groom_name_kh' => 'ហាក់ សំណាង',
             ],
             // Wedding #3 — Essential Package (Published, mid-size)
             [
@@ -573,6 +604,12 @@ class DemoWeddingSeeder extends Seeder
                 'package' => 'Essential',
                 'guest_count' => 60,
                 'story' => 'Thyda and Piseth bonded over their shared passion for Angkor heritage preservation. Their Siem Reap wedding blends tradition with modern flair.',
+                'template' => 'angkor-heritage-v1',
+                'invitation_code' => 'ANGKOR2026',
+                'address' => 'Sala Kamreuk, Krong Siem Reap',
+                'parents' => ['Meas Rithy & Ngin Sopheak', 'Chey Sokha & Prum Kunthea'],
+                'bride_name_kh' => 'មាស ធីតា',
+                'groom_name_kh' => 'ជ័យ ពិសិដ្ឋ',
             ],
             // Wedding #4 — Signature Package (Published, large wedding)
             [
@@ -593,6 +630,12 @@ class DemoWeddingSeeder extends Seeder
                 'package' => 'Signature',
                 'guest_count' => 100,
                 'story' => 'Sreymom, an architect, and Virak, a tech entrepreneur, are hosting a grand celebration at the Sofitel. Their wedding features a fusion of Khmer and Western elegance.',
+                'template' => 'royal-khmer-v1',
+                'invitation_code' => 'SREYMOM2026',
+                'address' => 'Tonle Bassac, Chamkarmon, Phnom Penh',
+                'parents' => ['Vann Sothy & Mao Sreypov', 'Tep Vannak & Oun Sreyneang'],
+                'bride_name_kh' => 'វណ្ណ ស្រីមុំ',
+                'groom_name_kh' => 'ទេព វីរៈ',
             ],
         ];
 
@@ -649,6 +692,35 @@ class DemoWeddingSeeder extends Seeder
                 ['member_role' => MemberRole::Groom->value, 'is_primary' => false],
             );
 
+            // Free is deliberately kept invitation-free: its plan has no invitation
+            // design or RSVP entitlement. The paid plans receive a complete public invite.
+            $invitation = null;
+            if ($wData['package'] !== 'Free') {
+                $invitation = $wedding->invitations()->updateOrCreate(
+                    ['invitation_code' => $wData['invitation_code']],
+                    [
+                        'invitation_template_id' => InvitationTemplate::query()->where('slug', $wData['template'])->value('id'),
+                        'title' => 'The wedding celebration of '.$wData['name'],
+                        'cover_image_path' => 'demo/weddings/'.strtolower($wData['code']).'/cover.jpg',
+                        'status' => InvitationStatus::Published->value,
+                        'published_at' => now()->subDays(14),
+                        'settings' => [
+                            'sections' => ['Cover' => true, 'CoupleInfo' => true, 'LoveStory' => true, 'Schedule' => true, 'Gallery' => $wData['package'] === 'Signature', 'Location' => true, 'GiftRegistry' => false, 'RSVP' => true],
+                            'invitation_text_kh' => 'សូមគោរពអញ្ជើញ លោក លោកស្រី អ្នកនាង កញ្ញា ចូលរួមអបអរសាទរពិធីមង្គលការរបស់យើងខ្ញុំ',
+                            'invitation_text_en' => 'REQUEST THE HONOR OF YOUR PRESENCE AT OUR WEDDING CELEBRATION',
+                            'gallery_urls' => $wData['package'] === 'Signature'
+                                ? ['/storage/demo/weddings/wed-demo04/pre-wedding-1.jpg', '/storage/demo/weddings/wed-demo04/pre-wedding-2.jpg']
+                                : [],
+                            'bank_account' => ['bank' => 'ABA Bank', 'name' => $wData['bride_name'], 'number' => '001 234 567', 'qr_url' => ''],
+                            'couple_extended' => [
+                                'groom' => ['nameKh' => $wData['groom_name_kh'], 'nameEn' => $wData['groom_name'], 'photo' => '', 'fatherEn' => $wData['parents'][1], 'motherEn' => 'With love from the groom\'s family'],
+                                'bride' => ['nameKh' => $wData['bride_name_kh'], 'nameEn' => $wData['bride_name'], 'photo' => '', 'fatherEn' => $wData['parents'][0], 'motherEn' => 'With love from the bride\'s family'],
+                            ],
+                        ],
+                    ],
+                );
+            }
+
             // Subscription
             Subscription::query()->updateOrCreate(
                 ['wedding_id' => $wedding->id],
@@ -656,13 +728,11 @@ class DemoWeddingSeeder extends Seeder
                     'package_id' => $packageId,
                     'amount' => Package::query()->whereKey($packageId)->value('price'),
                     'currency' => 'USD',
-                    'status' => $wData['package'] === 'Free'
-                        ? SubscriptionStatus::Submitted->value
-                        : SubscriptionStatus::Submitted->value,
+                    'status' => SubscriptionStatus::Paid->value,
                     'payment_method' => $wData['package'] === 'Free' ? null : 'aba',
                     'payment_reference' => $wData['package'] === 'Free' ? null : 'DEMO-TXN-'.$wData['code'],
-                    'submitted_at' => now()->subDays(5),
-                    'paid_at' => null,
+                    'submitted_at' => now()->subDays(8),
+                    'paid_at' => now()->subDays(7),
                 ],
             );
 
@@ -700,27 +770,38 @@ class DemoWeddingSeeder extends Seeder
                     [
                         'phone' => $phone,
                         'email' => $email,
-                        'address' => 'Phnom Penh',
+                        'address' => $wData['address'],
+                        'note' => match ($groupName) {
+                            'Family' => 'Family celebration guest',
+                            'Friends' => 'Friend of the couple',
+                            'VIP' => 'Respected elder or community guest',
+                            default => 'Colleague of the couple',
+                        },
                         'guest_group_id' => $groups[$groupName]->id,
-                        'invitation_id' => null,
+                        'invitation_id' => $invitation?->id,
                         'is_vip' => ($groupName === 'VIP'),
                     ],
                 );
             }
 
-            // RSVP for ~70% of guests
-            $rsvpCount = (int) ($wData['guest_count'] * 0.7);
+            // RSVP is available only to the paid plans that include invitations.
+            $rsvpCount = $invitation ? (int) ($wData['guest_count'] * 0.72) : 0;
             $guestNames = array_keys($guests);
             shuffle($guestNames);
+            $acceptedGuestNames = [];
 
             foreach (array_slice($guestNames, 0, $rsvpCount) as $gName) {
                 $status = $rsvpStatuses[array_rand($rsvpStatuses)];
                 $count = ($status === RsvpStatus::Accepted) ? rand(1, 2) : 1;
 
+                if ($status === RsvpStatus::Accepted) {
+                    $acceptedGuestNames[] = $gName;
+                }
+
                 $wedding->rsvpResponses()->updateOrCreate(
                     ['guest_id' => $guests[$gName]->id],
                     [
-                        'invitation_id' => null,
+                        'invitation_id' => $invitation->id,
                         'guest_name' => $guests[$gName]->name,
                         'phone' => $guests[$gName]->phone,
                         'number_of_guests' => $count,
@@ -731,40 +812,57 @@ class DemoWeddingSeeder extends Seeder
                 );
             }
 
-            // Tables (1 table per 10 guests)
-            $tableCount = max(1, (int) ceil($wData['guest_count'] / 10));
+            // Only Signature includes the seating planner. Tables are filled by
+            // guest group so a real reception host can work from the demo plan.
+            $tableCount = $wData['package'] === 'Signature'
+                ? max(1, (int) ceil($wData['guest_count'] / 10))
+                : 0;
             $tables = [];
             for ($t = 1; $t <= $tableCount; $t++) {
-                $tName = 'Table '.$t;
+                $groupLabel = ['Family', 'Friends', 'VIP', 'Company'][($t - 1) % 4];
+                $tName = $groupLabel.' Table '.(intdiv($t - 1, 4) + 1);
                 $tables[$tName] = $wedding->tables()->updateOrCreate(
                     ['table_name' => $tName],
                     ['table_number' => $t, 'capacity' => 10],
                 );
             }
 
-            // Timeline
-            $wedding->timelineEvents()->updateOrCreate(
-                ['title' => 'Wedding Ceremony'],
-                [
-                    'category' => TimelineCategory::Ceremony->value,
-                    'description' => 'Traditional Khmer wedding ceremony.',
-                    'starts_at' => now()->parse($wData['wedding_date'])->setTime(9, 0),
-                    'location' => $wData['ceremony_venue'],
-                    'sort_order' => 1,
-                    'is_public' => true,
-                ],
-            );
-            $wedding->timelineEvents()->updateOrCreate(
-                ['title' => 'Reception Dinner'],
-                [
-                    'category' => TimelineCategory::Reception->value,
-                    'description' => 'Evening dinner reception with family and friends.',
-                    'starts_at' => now()->parse($wData['wedding_date'])->setTime((int) $wData['wedding_time'], 0),
-                    'location' => $wData['reception_venue'],
-                    'sort_order' => 2,
-                    'is_public' => true,
-                ],
-            );
+            foreach ($acceptedGuestNames as $seatIndex => $guestName) {
+                if ($tables === []) {
+                    break;
+                }
+
+                $tableNames = array_keys($tables);
+                $tableName = $tableNames[intdiv($seatIndex, 10) % count($tableNames)];
+                $guests[$guestName]->seating()->updateOrCreate(
+                    ['wedding_id' => $wedding->id],
+                    ['wedding_table_id' => $tables[$tableName]->id, 'seat_number' => ($seatIndex % 10) + 1],
+                );
+            }
+
+            if ($invitation) {
+                $weddingDay = now()->parse($wData['wedding_date']);
+                $timelineEvents = [
+                    [TimelineCategory::Engagement, 'Groom’s Procession (Hai Khan Mla)', 'The groom’s family brings traditional gifts to formally greet the bride’s family.', 7, 30, $wData['ceremony_venue']],
+                    [TimelineCategory::Ceremony, 'Blessing & Hair-Cutting Ceremony', 'Family members offer symbolic blessings for harmony, prosperity, and a joyful home.', 9, 0, $wData['ceremony_venue']],
+                    [TimelineCategory::Ceremony, 'Tea Ceremony & Ring Exchange', 'The couple honours their parents and ancestors before exchanging rings.', 10, 30, $wData['ceremony_venue']],
+                    [TimelineCategory::Reception, 'Wedding Reception', 'Khmer banquet dinner, family speeches, cake cutting, and traditional dancing.', (int) substr($wData['wedding_time'], 0, 2), (int) substr($wData['wedding_time'], 3, 2), $wData['reception_venue']],
+                ];
+
+                foreach ($timelineEvents as $order => [$category, $title, $description, $hour, $minute, $location]) {
+                    $wedding->timelineEvents()->updateOrCreate(
+                        ['title' => $title],
+                        [
+                            'category' => $category->value,
+                            'description' => $description,
+                            'starts_at' => $weddingDay->copy()->setTime($hour, $minute),
+                            'location' => $location,
+                            'sort_order' => $order + 1,
+                            'is_public' => true,
+                        ],
+                    );
+                }
+            }
 
             // Expenses (scaled to package level)
             $expenseScale = match ($wData['package']) {
@@ -797,11 +895,57 @@ class DemoWeddingSeeder extends Seeder
                         'amount' => $amount,
                         'paid_amount' => $paidAmount,
                         'status' => $status->value,
-                        'note' => null,
+                        'note' => match ($itemName) {
+                            'Venue Booking' => 'Reservation deposit and banquet hall setup.',
+                            'Catering' => 'Khmer-Chinese banquet menu; final headcount due one week before the reception.',
+                            'Photography' => 'Includes pre-wedding portraits and full-day ceremony coverage.',
+                            'Attire & Styling' => 'Traditional silk outfits, modern reception attire, and fitting appointments.',
+                            default => 'Fresh flowers, stage backdrop, and family-table arrangements.',
+                        },
                         'spent_at' => now()->subDays(rand(5, 30)),
                         'currency' => 'USD',
                     ],
                 );
+            }
+
+            if (in_array($wData['package'], ['Free', 'Signature'], true)) {
+                foreach (array_slice(array_keys($guests), 0, min(8, count($guests))) as $giftIndex => $guestName) {
+                    $isItem = $giftIndex === 0;
+                    $wedding->gifts()->updateOrCreate(
+                        ['guest_id' => $guests[$guestName]->id, 'gift_type' => $isItem ? GiftType::Item->value : GiftType::Cash->value],
+                        [
+                            'amount' => $isItem ? null : ($giftIndex % 2 === 0 ? 200000 : 50),
+                            'currency' => $isItem || $giftIndex % 2 === 1 ? 'USD' : 'KHR',
+                            'item_name' => $isItem ? 'Traditional Khmer silk bedding set' : null,
+                            'note' => $isItem ? 'A practical blessing for the couple’s new home.' : 'សូមជូនពរឱ្យមានសុភមង្គល និងវិបុលភាព។',
+                            'received_at' => now()->subDays(4 - min($giftIndex, 3)),
+                        ],
+                    );
+                }
+            }
+
+            if ($wData['package'] === 'Signature') {
+                $album = $wedding->albums()->updateOrCreate(
+                    ['name' => 'Pre-Wedding at Wat Botum'],
+                    ['description' => 'Traditional silk and modern portraits ahead of the wedding celebration.', 'is_public' => true],
+                );
+
+                foreach (['pre-wedding-1.jpg', 'pre-wedding-2.jpg', 'pre-wedding-3.jpg'] as $index => $fileName) {
+                    $wedding->mediaItems()->updateOrCreate(
+                        ['storage_path' => 'demo/weddings/wed-demo04/'.$fileName],
+                        [
+                            'album_id' => $album->id,
+                            'uploaded_by_user_id' => $bride->id,
+                            'media_type' => 'image',
+                            'thumbnail_path' => 'demo/weddings/wed-demo04/thumbnails/'.$fileName,
+                            'original_name' => $fileName,
+                            'mime_type' => 'image/jpeg',
+                            'size_bytes' => 2100000 + ($index * 150000),
+                            'is_public' => true,
+                            'taken_at' => now()->subDays(20 - $index),
+                        ],
+                    );
+                }
             }
         }
     }
