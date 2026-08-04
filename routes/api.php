@@ -38,6 +38,7 @@ Route::get('/ping', fn (): JsonResponse => response()->json([
 Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:auth');
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
+Route::post('/auth/reset-password/status', [AuthController::class, 'resetPasswordStatus'])->middleware('throttle:auth');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
 Route::post('/auth/email/resend', [AuthController::class, 'resendEmailVerification'])->middleware('throttle:auth');
 Route::get('/auth/email/verify/{id}/{hash}', [AuthController::class, 'verifyEmail'])

@@ -231,6 +231,18 @@ class AuthService
         }
     }
 
+    /**
+     * Check whether a reset token can still be used. Laravel removes the
+     * token after a successful reset, so this also detects links that were
+     * already used.
+     */
+    public function isPasswordResetLinkValid(string $email, string $token): bool
+    {
+        $user = Password::getUser(['email' => $email]);
+
+        return $user !== null && Password::getRepository()->exists($user, $token);
+    }
+
     private function issueToken(User $user, ?string $deviceName): string
     {
         $abilities = $user->roleKeys() ?: ['*'];

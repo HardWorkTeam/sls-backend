@@ -113,6 +113,21 @@ class AuthController extends Controller
         return response()->json(['message' => 'Password has been reset.']);
     }
 
+    public function resetPasswordStatus(Request $request): JsonResponse
+    {
+        $credentials = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+        ]);
+
+        return response()->json([
+            'valid' => $this->authService->isPasswordResetLinkValid(
+                $credentials['email'],
+                $credentials['token'],
+            ),
+        ]);
+    }
+
     public function verifyEmail(Request $request, int $id, string $hash): RedirectResponse
     {
         $user = User::query()->findOrFail($id);
