@@ -1,19 +1,6 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
-
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
@@ -68,26 +55,8 @@ return [
         'url' => env('CLIENT_APP_URL', 'http://localhost:3001'),
     ],
 
-    // Countdown emails sent to couples before their wedding day
-    // (see App\Console\Commands\SendWeddingReminders).
-    'reminders' => [
-        // The wedding date is a calendar date, so "one month before" has to be
-        // decided in the couples' local timezone, not the app's UTC.
-        'timezone' => env('WEDDING_REMINDER_TIMEZONE', 'Asia/Phnom_Penh'),
-
-        // How many days late a milestone may still be delivered when a cron
-        // run is missed (deploy, host restart). 0 means exact-date only. The
-        // wedding-day reminder never catches up — it would arrive after the
-        // wedding.
-        'catch_up_days' => env('WEDDING_REMINDER_CATCH_UP_DAYS', 2),
-
-        // Local time of day the scheduler fires the command, in the timezone
-        // above. Ignored if you invoke the command directly from cron.
-        'send_at' => env('WEDDING_REMINDER_SEND_AT', '08:00'),
-    ],
-
     // Platform's own payment details, shown to couples when paying for a
-    // package (manual KHQR / bank transfer — no payment gateway).
+    // package (manual KHQR / bank transfer â€” no payment gateway).
     'platform_payment' => [
         'bank_name' => env('PLATFORM_BANK_NAME', 'ABA Bank'),
         'account_name' => env('PLATFORM_ACCOUNT_NAME', 'Srolanh Management'),
@@ -95,5 +64,4 @@ return [
         'khqr_image_url' => env('PLATFORM_KHQR_IMAGE_URL'), // a static KHQR QR image
         'instructions' => env('PLATFORM_PAYMENT_INSTRUCTIONS', 'Scan the KHQR or transfer to the account above, then enter your transaction reference.'),
     ],
-
 ];

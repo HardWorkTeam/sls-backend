@@ -137,8 +137,4 @@ class Wedding extends Model
         return $this->hasMany(Album::class);
     }
 
-    public function reminders(): HasMany
-    {
-        return $this->hasMany(WeddingReminder::class);
-    }
 }
