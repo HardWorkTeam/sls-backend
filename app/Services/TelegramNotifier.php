@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Sends best-effort alerts to the admin team's Telegram chat via the Bot API.
@@ -42,7 +43,20 @@ class TelegramNotifier
             $response = Http::timeout(5)
                 ->post("https://api.telegram.org/bot{$token}/sendMessage", $payload);
 
-            return $response->successful();
+            if ($response->successful()) {
+                return true;
+            }
+
+            // Telegram returns a useful, non-sensitive error such as "chat not
+            // found" or "message thread not found". Keep the request path
+            // best-effort, but leave an actionable trace for operators.
+            Log::warning('Telegram notification was rejected.', [
+                'status' => $response->status(),
+                'description' => $response->json('description'),
+                'error_code' => $response->json('error_code'),
+            ]);
+
+            return false;
         } catch (\Throwable $e) {
             report($e);
 
