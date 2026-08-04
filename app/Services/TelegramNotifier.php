@@ -17,11 +17,11 @@ class TelegramNotifier
      * callers can pass <b>…</b> and pre-escaped values. Returns true on a
      * confirmed send, false if skipped or failed.
      */
-    public function sendMessage(string $text, ?int $topicId = null): bool
+    public function sendMessage(string $text): bool
     {
         $token = config('services.telegram.bot_token');
         $chatId = config('services.telegram.admin_chat_id');
-        $topicId ??= config('services.telegram.admin_topic_id');
+        $topicId = config('services.telegram.admin_topic_id');
 
         if (! $token || ! $chatId) {
             return false;
