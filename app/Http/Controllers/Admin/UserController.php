@@ -36,6 +36,7 @@ class UserController extends Controller
         unset($data['roles']);
 
         $user = $this->userService->create($data, $roles);
+        $user->markEmailAsVerified();
 
         return UserResource::make($user)->response()->setStatusCode(201);
     }

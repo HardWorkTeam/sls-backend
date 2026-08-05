@@ -65,7 +65,7 @@ class AuthService
             throw new AuthenticationException('This account has been deactivated.');
         }
 
-        if (! $user->hasVerifiedEmail()) {
+        if ($portal === 'couple' && ! $user->hasVerifiedEmail()) {
             throw ValidationException::withMessages([
                 'email' => ['Please verify your email address before logging in.'],
             ]);
