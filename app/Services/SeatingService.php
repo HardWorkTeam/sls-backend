@@ -208,7 +208,8 @@ class SeatingService
     /**
      * Import tables from a CSV or XLSX file. Expected headers:
      * table_name, table_number, capacity. Rows that clash with an existing
-     * table name or number are skipped (those columns are unique per wedding).
+     * table are skipped only when BOTH table_name AND table_number match
+     * (i.e. the composite pair must be unique per wedding, not each field alone).
      *
      * @return array{imported: int, skipped: int, errors: list<string>}
      */
@@ -227,12 +228,14 @@ class SeatingService
             return ['imported' => 0, 'skipped' => 0, 'errors' => ['The file has no data rows.']];
         }
 
-        // Existing names/numbers guard the per-wedding unique constraints so the
-        // import never trips a database error mid-file.
-        $existingNames = $wedding->tables()->pluck('table_name')
-            ->map(fn ($name) => mb_strtolower((string) $name))->all();
-        $existingNumbers = $wedding->tables()->whereNotNull('table_number')
-            ->pluck('table_number')->map(fn ($number) => (int) $number)->all();
+        // Build a composite key set (lowercase_name|number) that mirrors the
+        // composite uniqueness check: a duplicate only when BOTH name AND number match.
+        $existingPairs = $wedding->tables()->get(['table_name', 'table_number'])
+            ->mapWithKeys(function ($row) {
+                $key = mb_strtolower((string) $row->table_name) . '|' . ($row->table_number ?? '');
+                return [$key => true];
+            })
+            ->all();
 
         $imported = 0;
         $skipped = 0;
@@ -268,20 +271,16 @@ class SeatingService
                     continue;
                 }
 
-                if (in_array(mb_strtolower($name), $existingNames, true)) {
-                    $skipped++;
-                    $errors[] = "Line {$line}: a table named \"{$name}\" already exists.";
-
-                    continue;
-                }
-
                 $number = isset($data['table_number']) && $data['table_number'] !== ''
                     ? (int) $data['table_number']
                     : null;
 
-                if ($number !== null && in_array($number, $existingNumbers, true)) {
+                // A row is a duplicate only when BOTH name AND number already exist together.
+                $pairKey = mb_strtolower($name) . '|' . ($number ?? '');
+                if (isset($existingPairs[$pairKey])) {
                     $skipped++;
-                    $errors[] = "Line {$line}: table number {$number} is already taken.";
+                    $label = $number !== null ? "\"{$name}\" #{$number}" : "\"{$name}\"";
+                    $errors[] = "Line {$line}: table {$label} already exists.";
 
                     continue;
                 }
@@ -291,16 +290,12 @@ class SeatingService
                     : 0;
 
                 $wedding->tables()->create([
-                    'table_name' => $name,
+                    'table_name'   => $name,
                     'table_number' => $number,
-                    'capacity' => $capacity,
+                    'capacity'     => $capacity,
                 ]);
 
-                $existingNames[] = mb_strtolower($name);
-
-                if ($number !== null) {
-                    $existingNumbers[] = $number;
-                }
+                $existingPairs[$pairKey] = true;
 
                 $imported++;
             }

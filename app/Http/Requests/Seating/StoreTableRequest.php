@@ -3,7 +3,7 @@
 namespace App\Http\Requests\Seating;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class StoreTableRequest extends FormRequest
 {
@@ -17,23 +17,47 @@ class StoreTableRequest extends FormRequest
      */
     public function rules(): array
     {
-        $weddingId = $this->route('wedding')?->id;
-
         return [
-            'table_name' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('wedding_tables', 'table_name')->where('wedding_id', $weddingId),
-            ],
-            'table_number' => [
-                'nullable',
-                'integer',
-                'min:1',
-                Rule::unique('wedding_tables', 'table_number')->where('wedding_id', $weddingId),
-            ],
-            'capacity' => ['required', 'integer', 'min:0', 'max:1000'],
-            'layout' => ['sometimes', 'nullable', 'array'],
+            'table_name'   => ['required', 'string', 'max:255'],
+            'table_number' => ['nullable', 'integer', 'min:1'],
+            'capacity'     => ['required', 'integer', 'min:0', 'max:1000'],
+            'layout'       => ['sometimes', 'nullable', 'array'],
+        ];
+    }
+
+    /**
+     * After standard validation passes, check that the combination of
+     * table_name + table_number is unique for this wedding.
+     * A table is only a duplicate when BOTH fields match an existing row.
+     */
+    public function after(): array
+    {
+        return [
+            function ($validator) {
+                $weddingId  = $this->route('wedding')?->id;
+                $name       = $this->input('table_name');
+                $number     = $this->input('table_number');
+
+                $exists = \DB::table('wedding_tables')
+                    ->where('wedding_id', $weddingId)
+                    ->where('table_name', $name)
+                    ->where(function ($q) use ($number) {
+                        if ($number === null) {
+                            $q->whereNull('table_number');
+                        } else {
+                            $q->where('table_number', (int) $number);
+                        }
+                    })
+                    ->exists();
+
+                if ($exists) {
+                    $label = $number !== null ? "\"{$name}\" #". (int) $number : "\"{$name}\"";
+                    $validator->errors()->add(
+                        'table_name',
+                        "A table {$label} already exists for this wedding."
+                    );
+                }
+            },
         ];
     }
 }
