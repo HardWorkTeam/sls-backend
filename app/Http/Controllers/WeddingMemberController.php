@@ -61,7 +61,7 @@ class WeddingMemberController extends Controller
 
     public function update(UpdateWeddingMemberRequest $request, Wedding $wedding, WeddingMember $member): JsonResponse
     {
-        $updatedMember = $this->weddingService->updateMember($member, $request->validated());
+        $updatedMember = $this->weddingService->updateMember($wedding, $member, $request->validated());
 
         return WeddingMemberResource::make($updatedMember)->response();
     }
