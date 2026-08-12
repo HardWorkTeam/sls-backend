@@ -184,6 +184,12 @@ class WeddingService
             ]);
         }
 
+        if ($member->user_id === auth()->id()) {
+            throw ValidationException::withMessages([
+                'member' => ['You cannot remove yourself from the wedding.'],
+            ]);
+        }
+
         $member->delete();
     }
 
