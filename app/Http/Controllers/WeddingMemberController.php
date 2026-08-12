@@ -18,9 +18,28 @@ class WeddingMemberController extends Controller
 
     public function index(Wedding $wedding): AnonymousResourceCollection
     {
-        return WeddingMemberResource::collection(
-            $wedding->members()->with('user.roles')->get(),
-        );
+        $members = $wedding->members()->with('user.roles')->get();
+
+        // Ensure the wedding owner is always displayed in the members list
+        if (! $members->contains('user_id', $wedding->created_by_user_id)) {
+            $owner = $wedding->createdBy()->with('roles')->first();
+            
+            if ($owner) {
+                $ownerMember = new WeddingMember([
+                    'wedding_id' => $wedding->id,
+                    'user_id' => $owner->id,
+                    'member_role' => \App\Enums\MemberRole::Member->value,
+                    'is_primary' => true,
+                ]);
+                
+                $ownerMember->id = 0; // Temporary ID for the frontend
+                $ownerMember->setRelation('user', $owner);
+                
+                $members->prepend($ownerMember);
+            }
+        }
+
+        return WeddingMemberResource::collection($members);
     }
 
     public function store(StoreWeddingMemberRequest $request, Wedding $wedding): JsonResponse
