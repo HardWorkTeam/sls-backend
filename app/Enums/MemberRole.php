@@ -6,7 +6,7 @@ enum MemberRole: string
 {
     case Bride = 'bride';
     case Groom = 'groom';
-    case Organizer = 'organizer';
+    case Member = 'member';
 
     /**
      * @return list<string>
