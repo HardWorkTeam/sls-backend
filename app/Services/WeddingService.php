@@ -119,18 +119,25 @@ class WeddingService
         return $wedding;
     }
 
-    /**
-     * @param  array{user_id: int, member_role: string, is_primary?: bool}  $attributes
-     */
     public function addMember(Wedding $wedding, array $attributes): WeddingMember
     {
-        if ($wedding->members()->where('user_id', $attributes['user_id'])->exists()) {
+        if (WeddingMember::query()->where('user_id', $attributes['user_id'])->exists()) {
             throw ValidationException::withMessages([
-                'user_id' => ['This user is already a member of the wedding.'],
+                'user_id' => ['This user is already a member of a wedding.'],
             ]);
         }
 
         return $wedding->members()->create($attributes)->load('user');
+    }
+
+    /**
+     * @param  array{member_role: string, is_primary?: bool}  $attributes
+     */
+    public function updateMember(WeddingMember $member, array $attributes): WeddingMember
+    {
+        $member->update($attributes);
+
+        return $member->fresh('user');
     }
 
     /**

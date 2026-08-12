@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Wedding\InviteWeddingMemberRequest;
 use App\Http\Requests\Wedding\StoreWeddingMemberRequest;
+use App\Http\Requests\Wedding\UpdateWeddingMemberRequest;
 use App\Http\Resources\WeddingMemberResource;
 use App\Models\Wedding;
 use App\Models\WeddingMember;
@@ -37,6 +38,13 @@ class WeddingMemberController extends Controller
             'data' => WeddingMemberResource::make($result['member']->load('user.roles')),
             'temp_password' => $result['temp_password'],
         ], 201);
+    }
+
+    public function update(UpdateWeddingMemberRequest $request, Wedding $wedding, WeddingMember $member): JsonResponse
+    {
+        $updatedMember = $this->weddingService->updateMember($member, $request->validated());
+
+        return WeddingMemberResource::make($updatedMember)->response();
     }
 
     public function destroy(Wedding $wedding, WeddingMember $member): JsonResponse

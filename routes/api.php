@@ -136,6 +136,8 @@ Route::middleware('auth:sanctum')->group(function () {
             ->middleware('role:super_admin,organizer');
         Route::post('/members/invite', [WeddingMemberController::class, 'invite'])
             ->middleware('role:super_admin,organizer,couple');
+        Route::put('/members/{member}', [WeddingMemberController::class, 'update'])
+            ->middleware('role:super_admin,organizer');
         Route::delete('/members/{member}', [WeddingMemberController::class, 'destroy'])
             ->middleware('role:super_admin,organizer');
 
