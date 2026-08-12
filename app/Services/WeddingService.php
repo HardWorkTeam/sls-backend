@@ -178,6 +178,12 @@ class WeddingService
      */
     public function removeMember(WeddingMember $member): void
     {
+        if ($member->user_id === $member->wedding->created_by_user_id) {
+            throw ValidationException::withMessages([
+                'member' => ['The owner of the wedding cannot be removed.'],
+            ]);
+        }
+
         $member->delete();
     }
 
