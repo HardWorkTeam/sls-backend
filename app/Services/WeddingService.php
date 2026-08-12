@@ -140,8 +140,22 @@ class WeddingService
     /**
      * @param  array{member_role: string, is_primary?: bool}  $attributes
      */
-    public function updateMember(WeddingMember $member, array $attributes): WeddingMember
+    public function updateMember(Wedding $wedding, WeddingMember $member, array $attributes): WeddingMember
     {
+        $user = auth()->user();
+
+        // A member may only update their own record unless they hold a
+        // privileged system role or are the wedding owner.
+        $isPrivileged = $user && $user->hasAnyRole(['super_admin', 'organizer', 'couple']);
+        $isOwner = $user && $user->id === $wedding->created_by_user_id;
+        $isSelf = $user && $user->id === $member->user_id;
+
+        if (! $isPrivileged && ! $isOwner && ! $isSelf) {
+            throw ValidationException::withMessages([
+                'member' => ['You do not have permission to update this member.'],
+            ]);
+        }
+
         $member->update($attributes);
 
         return $member->fresh('user');
