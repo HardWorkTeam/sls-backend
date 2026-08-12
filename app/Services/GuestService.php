@@ -179,12 +179,15 @@ class GuestService
      *
      * @param  list<int>  $guestIds
      */
-    public function bulkInvite(Wedding $wedding, array $guestIds, int $invitationId): int
+    public function bulkInvite(Wedding $wedding, ?array $guestIds, int $invitationId): int
     {
-        return Guest::query()
-            ->where('wedding_id', $wedding->id)
-            ->whereIn('id', $guestIds)
-            ->update(['invitation_id' => $invitationId]);
+        $query = Guest::query()->where('wedding_id', $wedding->id);
+        
+        if (! empty($guestIds)) {
+            $query->whereIn('id', $guestIds);
+        }
+
+        return $query->update(['invitation_id' => $invitationId]);
     }
 
     /**

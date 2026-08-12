@@ -115,9 +115,14 @@ class GuestController extends Controller
 
     public function bulkInvite(BulkInviteRequest $request, Wedding $wedding): JsonResponse
     {
+        $rawIds = $request->input('guest_ids');
+        $guestIds = is_array($rawIds) && count($rawIds) > 0
+            ? array_values(array_map('intval', array_filter($rawIds, 'is_numeric')))
+            : null;
+
         $updated = $this->guestService->bulkInvite(
             $wedding,
-            $request->validated('guest_ids'),
+            $guestIds,
             (int) $request->validated('invitation_id'),
         );
 

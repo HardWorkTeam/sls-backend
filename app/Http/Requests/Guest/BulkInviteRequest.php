@@ -20,7 +20,7 @@ class BulkInviteRequest extends FormRequest
         $weddingId = $this->route('wedding')?->id;
 
         return [
-            'guest_ids' => ['required', 'array', 'min:1'],
+            'guest_ids' => ['nullable', 'array'],
             'guest_ids.*' => ['integer'],
             'invitation_id' => [
                 'required',
