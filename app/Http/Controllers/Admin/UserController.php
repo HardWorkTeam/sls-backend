@@ -52,6 +52,10 @@ class UserController extends Controller
         $roles = $data['roles'] ?? null;
         unset($data['roles']);
 
+        if ($request->user()->id === $user->id) {
+            $roles = null;
+        }
+
         if (array_key_exists('password', $data) && $data['password'] === null) {
             unset($data['password']);
         }
