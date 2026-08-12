@@ -25,15 +25,13 @@ class WeddingMemberController extends Controller
             $owner = $wedding->createdBy()->with('roles')->first();
             
             if ($owner) {
-                $ownerMember = new WeddingMember([
-                    'wedding_id' => $wedding->id,
+                $ownerMember = $wedding->members()->create([
                     'user_id' => $owner->id,
                     'member_role' => \App\Enums\MemberRole::Member->value,
                     'is_primary' => true,
                 ]);
                 
-                $ownerMember->id = 0; // Temporary ID for the frontend
-                $ownerMember->setRelation('user', $owner);
+                $ownerMember->load('user.roles');
                 
                 $members->prepend($ownerMember);
             }
