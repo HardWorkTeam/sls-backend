@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\MemberRole;
 use App\Enums\RoleKey;
 use App\Enums\WeddingStatus;
 use App\Models\User;
@@ -52,6 +53,12 @@ class WeddingService
 
         /** @var Wedding $wedding */
         $wedding = $this->weddings->create($attributes);
+
+        $wedding->members()->create([
+            'user_id' => $user->id,
+            'member_role' => MemberRole::Member->value,
+            'is_primary' => true,
+        ]);
 
         return $wedding->load(['package', 'createdBy']);
     }
