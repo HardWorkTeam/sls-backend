@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Guest;
+use App\Models\GuestSeating;
 use App\Models\Wedding;
 use App\Repositories\GuestRepository;
 use App\Support\Excel;
@@ -78,6 +79,7 @@ class GuestService
 
     public function delete(Guest $guest): void
     {
+        $guest->seating()->delete();
         $this->guests->delete($guest);
     }
 
@@ -89,10 +91,14 @@ class GuestService
     public function deleteAll(Wedding $wedding, ?array $guestIds = null): int
     {
         $query = $wedding->guests();
+        $seatingQuery = GuestSeating::query()->where('wedding_id', $wedding->id);
 
         if (! empty($guestIds)) {
             $query->whereIn('id', $guestIds);
+            $seatingQuery->whereIn('guest_id', $guestIds);
         }
+
+        $seatingQuery->delete();
 
         return $query->delete();
     }
