@@ -221,18 +221,29 @@ class WeddingService
      */
     public function dashboard(Wedding $wedding): array
     {
+        $guestsByGroup = $wedding->guestGroups()
+            ->withCount('guests')
+            ->get()
+            ->map(fn ($group) => [
+                'group' => $group->name,
+                'type' => $group->type,
+                'total' => $group->guests_count,
+            ]);
+
+        $ungroupedCount = $wedding->guests()->whereNull('guest_group_id')->count();
+        if ($ungroupedCount > 0) {
+            $guestsByGroup->push([
+                'group' => 'Other',
+                'type' => 'custom',
+                'total' => $ungroupedCount,
+            ]);
+        }
+
         return [
             'rsvp' => $this->rsvps->statsForWedding($wedding),
             'rsvp_trend' => $this->rsvps->trendForWedding($wedding),
             'gifts' => $this->gifts->summaryForWedding($wedding),
-            'guests_by_group' => $wedding->guestGroups()
-                ->withCount('guests')
-                ->get()
-                ->map(fn ($group) => [
-                    'group' => $group->name,
-                    'type' => $group->type,
-                    'total' => $group->guests_count,
-                ]),
+            'guests_by_group' => $guestsByGroup,
             'tables' => [
                 'total' => $wedding->tables()->count(),
                 'capacity' => (int) $wedding->tables()->sum('capacity'),
