@@ -65,13 +65,16 @@ class PlatformIncomeService
             $amount = (float) $subscription->amount;
             $total += $amount;
 
-            $key = $subscription->package_id;
+            // Key on both package_id and currency so mixed-currency packages
+            // are never combined into a single inaccurate total.
+            $key = ($subscription->package_id ?? 0).'_'.$subscription->currency;
             if (! isset($byPackage[$key])) {
                 $byPackage[$key] = [
-                    'package_id' => $subscription->package_id,
-                    'package_name' => $subscription->package->name ?? 'Unknown',
-                    'count' => 0,
-                    'amount' => 0.0,
+                    'package_id'   => $subscription->package_id,
+                    'package_name' => $subscription->package?->name ?? 'Unknown',
+                    'currency'     => $subscription->currency,
+                    'count'        => 0,
+                    'amount'       => 0.0,
                 ];
             }
             $byPackage[$key]['count']++;
@@ -104,15 +107,16 @@ class PlatformIncomeService
         $wedding = $subscription->wedding;
 
         return [
-            'event_id' => $wedding?->id,
+            'id'           => $subscription->id,
+            'event_id'     => $wedding?->id,
             'wedding_code' => $wedding?->wedding_code,
-            'event_name' => $wedding?->wedding_name,
+            'event_name'   => $wedding?->wedding_name,
             'event_status' => $wedding?->status,
-            'user_id' => $wedding?->created_by_user_id,
-            'user_name' => $wedding?->createdBy?->name,
+            'user_id'      => $wedding?->created_by_user_id,
+            'user_name'    => $wedding?->createdBy?->name,
             'package_name' => $subscription->package?->name,
-            'amount' => (float) $subscription->amount,
-            'currency' => $subscription->currency,
+            'amount'       => (float) $subscription->amount,
+            'currency'     => $subscription->currency,
             'purchased_at' => $subscription->paid_at?->toIso8601String(),
         ];
     }
