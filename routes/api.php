@@ -200,6 +200,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::middleware('plan.module:gifts')->group(function () {
             Route::get('/gifts', [GiftController::class, 'index']);
             Route::get('/gifts/summary', [GiftController::class, 'summary']);
+            Route::get('/gifts/export', [GiftController::class, 'export']);
             Route::post('/gifts', [GiftController::class, 'store']);
             Route::put('/gifts/{gift}', [GiftController::class, 'update']);
             Route::delete('/gifts/{gift}', [GiftController::class, 'destroy']);

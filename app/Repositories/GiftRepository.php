@@ -33,6 +33,23 @@ class GiftRepository extends EloquentRepository
             ->paginate($perPage);
     }
 
+    public function allForWedding(
+        Wedding $wedding,
+        ?string $giftType = null,
+        ?string $search = null,
+    ) {
+        return $this->query()
+            ->where('wedding_id', $wedding->id)
+            ->with('guest')
+            ->when($giftType, fn (Builder $query) => $query->where('gift_type', $giftType))
+            ->when($search, fn (Builder $query, string $term) => $query->whereHas(
+                'guest',
+                fn (Builder $guest) => $guest->where('name', 'ilike', "%{$term}%"),
+            ))
+            ->latest('received_at')
+            ->get();
+    }
+
     /**
      * @return array{total_gifts: int, total_cash_amount: float, by_type: array<string, array{count: int, amount: float}>}
      */
