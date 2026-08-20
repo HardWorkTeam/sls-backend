@@ -197,6 +197,22 @@ class GuestService
     }
 
     /**
+     * Attach a group to many guests at once (bulk group).
+     *
+     * @param  list<int>|null  $guestIds
+     */
+    public function bulkGroup(Wedding $wedding, ?array $guestIds, int $groupId): int
+    {
+        $query = Guest::query()->where('wedding_id', $wedding->id);
+        
+        if (! empty($guestIds)) {
+            $query->whereIn('id', $guestIds);
+        }
+
+        return $query->update(['guest_group_id' => $groupId]);
+    }
+
+    /**
      * Import guests from an Excel (XLSX/XLS) or CSV file across all sheets.
      * Uses each sheet tab name as the default group name (e.g. "Family", "VIP"),
      * unless overridden by a 'group' column value in the row.

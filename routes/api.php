@@ -160,6 +160,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/guests/import', [GuestController::class, 'import']);
         Route::get('/guests/export', [GuestController::class, 'export']);
         Route::post('/guests/bulk-invite', [GuestController::class, 'bulkInvite']);
+        Route::post('/guests/bulk-group', [GuestController::class, 'bulkGroup']);
 
         // Wedding-day QR check-in — gated to plans that include it. Static
         // paths are registered before the {guest} wildcard so "check-in" is

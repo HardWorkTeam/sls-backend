@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Guest\BulkGroupRequest;
 use App\Http\Requests\Guest\BulkInviteRequest;
 use App\Http\Requests\Guest\CheckInRequest;
 use App\Http\Requests\Guest\ImportGuestsRequest;
@@ -128,6 +129,22 @@ class GuestController extends Controller
         );
 
         return response()->json(['message' => "Invitation attached to {$updated} guests."]);
+    }
+
+    public function bulkGroup(BulkGroupRequest $request, Wedding $wedding): JsonResponse
+    {
+        $rawIds = $request->input('guest_ids');
+        $guestIds = is_array($rawIds) && count($rawIds) > 0
+            ? array_values(array_map('intval', array_filter($rawIds, 'is_numeric')))
+            : null;
+
+        $updated = $this->guestService->bulkGroup(
+            $wedding,
+            $guestIds,
+            (int) $request->validated('guest_group_id'),
+        );
+
+        return response()->json(['message' => "Group assigned to {$updated} guests."]);
     }
 
     /**
