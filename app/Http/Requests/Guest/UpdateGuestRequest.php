@@ -20,8 +20,17 @@ class UpdateGuestRequest extends FormRequest
         $weddingId = $this->route('wedding')?->id;
 
         return [
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'phone' => ['sometimes', 'nullable', 'string', 'max:30'],
+            'name' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('guests', 'name')->where(function ($query) use ($weddingId) {
+                    return $query->where('wedding_id', $weddingId)
+                                 ->where('phone', $this->input('phone'));
+                })->ignore($this->route('guest'))
+            ],
+            'phone' => ['sometimes', 'required', 'string', 'max:30'],
             'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'address' => ['sometimes', 'nullable', 'string'],
             'note' => ['sometimes', 'nullable', 'string'],
