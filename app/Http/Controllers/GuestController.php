@@ -72,9 +72,30 @@ class GuestController extends Controller
         ]);
     }
 
-    public function import(ImportGuestsRequest $request, Wedding $wedding): JsonResponse
+    public function importPreview(ImportGuestsRequest $request, Wedding $wedding): JsonResponse
     {
-        $result = $this->guestService->importCsv($wedding, $request->file('file'));
+        $result = $this->guestService->previewImportCsv($wedding, $request->file('file'));
+
+        return response()->json([
+            'message' => "Successfully parsed file.",
+            'data' => $result,
+        ]);
+    }
+
+    public function importConfirm(Request $request, Wedding $wedding): JsonResponse
+    {
+        $validated = $request->validate([
+            'guests' => ['required', 'array'],
+            'guests.*.name' => ['required', 'string'],
+            'guests.*.phone' => ['nullable', 'string'],
+            'guests.*.email' => ['nullable', 'string'],
+            'guests.*.address' => ['nullable', 'string'],
+            'guests.*.note' => ['nullable', 'string'],
+            'guests.*.group_name' => ['nullable', 'string'],
+            'guests.*.is_vip' => ['nullable', 'boolean'],
+        ]);
+
+        $result = $this->guestService->importConfirm($wedding, $validated['guests']);
 
         return response()->json([
             'message' => "Imported {$result['imported']} guests ({$result['skipped']} skipped).",
