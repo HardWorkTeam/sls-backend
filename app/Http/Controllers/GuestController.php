@@ -29,6 +29,7 @@ class GuestController extends Controller
                 'search' => $request->query('search'),
                 'guest_group_id' => $request->query('guest_group_id'),
                 'is_vip' => $request->has('is_vip') ? $request->boolean('is_vip') : null,
+                'sort' => $request->query('sort'),
             ],
             (int) $request->query('per_page', '15'),
         );
