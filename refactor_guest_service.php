@@ -1,229 +1,23 @@
 <?php
 
-namespace App\Services;
+$file = 'd:/Norton/smp-project/sls-backend/app/Services/GuestService.php';
+$content = file_get_contents($file);
 
-use App\Models\Guest;
-use App\Models\GuestSeating;
-use App\Models\Wedding;
-use App\Repositories\GuestRepository;
-use App\Support\Excel;
-use App\Support\PlanCapabilities;
-use BaconQrCode\Renderer\Image\SvgImageBackEnd;
-use BaconQrCode\Renderer\ImageRenderer;
-use BaconQrCode\Renderer\RendererStyle\RendererStyle;
-use BaconQrCode\Writer;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
+// Find the start of importCsv
+$startPos = strpos($content, 'public function importCsv(');
+// Find the start of exportExcel, which comes after importCsv
+$endPos = strpos($content, 'public function exportExcel(');
 
-class GuestService
-{
-    public function __construct(
-        private readonly GuestRepository $guests,
-        private readonly InvitationService $invitationService,
-    ) {}
+if ($startPos === false || $endPos === false) {
+    die("Could not find importCsv or exportExcel boundaries.\n");
+}
 
+$before = substr($content, 0, $startPos);
+$importCsvContent = substr($content, $startPos, $endPos - $startPos);
+$after = substr($content, $endPos);
+
+$newContentStr = <<<'EOD'
     /**
-     * @param  array{search?: string|null, guest_group_id?: int|null, is_vip?: bool|null}  $filters
-     */
-    public function list(Wedding $wedding, array $filters, int $perPage = 15): LengthAwarePaginator
-    {
-        return $this->guests->searchForWedding($wedding, $filters, $perPage);
-    }
-
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    public function create(Wedding $wedding, array $attributes): Guest
-    {
-        $this->assertGuestCapacity($wedding);
-
-        $attributes['wedding_id'] = $wedding->id;
-
-        /** @var Guest $guest */
-        $guest = $this->guests->create($attributes);
-
-        return $guest->load(['group', 'invitation', 'seating.table']);
-    }
-
-    /**
-     * Guard the wedding's plan guest cap before adding $adding more guests.
-     * Unlimited plans (null limit) never block.
-     */
-    private function assertGuestCapacity(Wedding $wedding, int $adding = 1): void
-    {
-        $limit = PlanCapabilities::forWedding($wedding)->guestLimit;
-
-        if ($limit === null) {
-            return;
-        }
-
-        $current = $wedding->guests()->count();
-
-        abort_if(
-            $current + $adding > $limit,
-            422,
-            "Your plan allows up to {$limit} guests. Upgrade your plan to add more.",
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $attributes
-     */
-    public function update(Guest $guest, array $attributes): Guest
-    {
-        $this->guests->update($guest, $attributes);
-
-        return $guest->load(['group', 'invitation', 'seating.table']);
-    }
-
-    public function delete(Guest $guest): void
-    {
-        $guest->seating()->delete();
-        $this->guests->delete($guest);
-    }
-
-    /**
-     * Delete all or specific selected guests for a wedding.
-     *
-     * @param  list<int>|null  $guestIds
-     */
-    public function deleteAll(Wedding $wedding, ?array $guestIds = null): int
-    {
-        $query = $wedding->guests();
-        $seatingQuery = GuestSeating::query()->where('wedding_id', $wedding->id);
-
-        if (! empty($guestIds)) {
-            $query->whereIn('id', $guestIds);
-            $seatingQuery->whereIn('guest_id', $guestIds);
-        }
-
-        $seatingQuery->delete();
-
-        return $query->delete();
-    }
-
-    /**
-     * Check a guest in by their QR token (wedding-day scan). The token is
-     * scoped to the wedding so a code from another event never matches.
-     *
-     * @return array{guest: Guest, already_checked_in: bool}
-     */
-    public function checkInByToken(Wedding $wedding, string $token): array
-    {
-        $guest = $this->guests->findByToken($wedding, $token);
-
-        abort_if($guest === null, 404, 'No guest matches this code for this wedding.');
-
-        $already = $guest->isCheckedIn();
-
-        if (! $already) {
-            // Atomic claim: two door staff scanning the same code concurrently
-            // race the read above, so let the database decide who was first.
-            $claimed = $this->guests->query()
-                ->whereKey($guest->id)
-                ->whereNull('checked_in_at')
-                ->update(['checked_in_at' => now()]);
-
-            $already = $claimed === 0;
-            $guest->refresh();
-        }
-
-        return [
-            'guest' => $guest->load(['group', 'invitation', 'seating.table']),
-            'already_checked_in' => $already,
-        ];
-    }
-
-    /**
-     * Manually mark a guest as arrived / not arrived from the guest list.
-     */
-    public function setCheckIn(Guest $guest, bool $arrived): Guest
-    {
-        $this->guests->update($guest, ['checked_in_at' => $arrived ? now() : null]);
-
-        return $guest->load(['group', 'invitation', 'seating.table']);
-    }
-
-    /**
-     * Render a guest's check-in QR code (their short code) as an SVG. Printed
-     * onto the invitation and scanned at the door on the wedding day. Encodes
-     * the same short code shown as text so scanning and manual entry resolve
-     * identically.
-     */
-    public function qrCodeSvg(Guest $guest, int $size = 320): string
-    {
-        $renderer = new ImageRenderer(
-            new RendererStyle($size),
-            new SvgImageBackEnd,
-        );
-
-        return (new Writer($renderer))->writeString(
-            (string) ($guest->check_in_code ?? $guest->check_in_token),
-        );
-    }
-
-    /**
-     * Arrival tally for the wedding-day check-in dashboard.
-     *
-     * @return array{total: int, arrived: int, pending: int}
-     */
-    public function checkInStats(Wedding $wedding): array
-    {
-        $total = $wedding->guests()->count();
-        $arrived = $wedding->guests()->whereNotNull('checked_in_at')->count();
-
-        return [
-            'total' => $total,
-            'arrived' => $arrived,
-            'pending' => $total - $arrived,
-        ];
-    }
-
-    /**
-     * Attach an invitation to many guests at once (bulk invite).
-     *
-     * @param  list<int>  $guestIds
-     */
-    public function bulkInvite(Wedding $wedding, ?array $guestIds, int $invitationId): int
-    {
-        $query = Guest::query()->where('wedding_id', $wedding->id);
-        
-        if (! empty($guestIds)) {
-            $query->whereIn('id', $guestIds);
-        }
-
-        return $query->update(['invitation_id' => $invitationId]);
-    }
-
-    /**
-     * Attach a group to many guests at once (bulk group).
-     *
-     * @param  list<int>|null  $guestIds
-     */
-    public function bulkGroup(Wedding $wedding, ?array $guestIds, int $groupId): int
-    {
-        $query = Guest::query()->where('wedding_id', $wedding->id);
-        
-        if (! empty($guestIds)) {
-            $query->whereIn('id', $guestIds);
-        }
-
-        return $query->update(['guest_group_id' => $groupId]);
-    }
-
-    /**
-     * Import guests from an Excel (XLSX/XLS) or CSV file across all sheets.
-     * Uses each sheet tab name as the default group name (e.g. "Family", "VIP"),
-     * unless overridden by a 'group' column value in the row.
-     * Supports single-column lists, numbered lists ("1. Guest Name", "2. Serey & Maramony"),
-     * offset columns (e.g. Column A empty, Col B sequence number, Col C guest name),
-     * title banner rows ("ឈ្មោះភ្ញៀវ..."), flexible headers in English & Khmer,
-     * as well as completely headerless guest lists.
-     *
-     * @return array{imported: int, skipped: int, errors: list<string>}
-     */
-        /**
      * Preview guests from an Excel (XLSX/XLS) or CSV file across all sheets.
      * Returns the parsed guests so the frontend can preview and edit them before confirmation.
      *
@@ -491,54 +285,8 @@ class GuestService
 
         return ['imported' => $imported, 'skipped' => $skipped, 'errors' => $errors];
     }
-public function exportExcel(Wedding $wedding, array $filters = []): string
-    {
-        $guests = $this->guests->allForWedding($wedding, $filters);
-        // The invitation and invite-link columns are the only consumers of the
-        // invitation, so it is loaded here rather than widening allForWedding
-        // for every caller.
-        $guests->loadMissing('invitation');
 
-        $canCheckIn = PlanCapabilities::forWedding($wedding)->checkin;
+EOD;
 
-        $rows = [];
-        foreach ($guests as $guest) {
-            $rows[] = [
-                $guest->name,
-                $guest->group?->name,
-                $guest->note,
-                $guest->invitation?->invitation_code,
-                $this->inviteLink($guest, $canCheckIn),
-            ];
-        }
-
-        return Excel::build(
-            ['Name', 'Group', 'Note', 'Invitation', 'Invite Link'],
-            $rows,
-            'Guests',
-        );
-    }
-
-    /**
-     * Personal invitation link for one guest: the invitation's public URL plus
-     * `?to=` (greets them by name on the invite) and `?t=` (their short
-     * check-in code, which powers the "my check-in QR" pass). Null when no
-     * invitation is attached. Mirrors the per-guest copy button in the portal
-     * guest list — keep the two in step.
-     */
-    private function inviteLink(Guest $guest, bool $canCheckIn): ?string
-    {
-        if ($guest->invitation === null) {
-            return null;
-        }
-
-        $query = ['to' => $guest->name];
-
-        if ($canCheckIn && $guest->check_in_code) {
-            $query['t'] = $guest->check_in_code;
-        }
-
-        return $this->invitationService->publicUrl($guest->invitation)
-            .'?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986);
-    }
-}
+file_put_contents($file, $before . $newContentStr . $after);
+echo "Successfully updated GuestService.php\n";

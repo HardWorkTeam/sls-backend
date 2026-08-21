@@ -20,8 +20,16 @@ class StoreGuestRequest extends FormRequest
         $weddingId = $this->route('wedding')?->id;
 
         return [
-            'name' => ['required', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('guests', 'name')->where(function ($query) use ($weddingId) {
+                    return $query->where('wedding_id', $weddingId)
+                                 ->where('phone', $this->input('phone'));
+                })
+            ],
+            'phone' => ['required', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string'],
             'note' => ['nullable', 'string'],

@@ -23,11 +23,19 @@ class GuestRepository extends EloquentRepository
         array $filters = [],
         int $perPage = 15,
     ): LengthAwarePaginator {
-        return $this->forWeddingQuery($wedding, $filters)
+        $sort = $filters['sort'] ?? 'name';
+
+        $query = $this->forWeddingQuery($wedding, $filters)
             ->with(['group', 'invitation', 'seating.table'])
-            ->withCount('rsvpResponses')
-            ->orderBy('name')
-            ->paginate($perPage);
+            ->withCount('rsvpResponses');
+
+        if ($sort === 'latest') {
+            $query->orderByDesc('created_at')->orderBy('name');
+        } else {
+            $query->orderBy('name');
+        }
+
+        return $query->paginate($perPage);
     }
 
     /**

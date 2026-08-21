@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Guest\BulkGroupRequest;
 use App\Http\Requests\Guest\BulkInviteRequest;
 use App\Http\Requests\Guest\CheckInRequest;
 use App\Http\Requests\Guest\ImportGuestsRequest;
@@ -29,6 +30,7 @@ class GuestController extends Controller
                 'search' => $request->query('search'),
                 'guest_group_id' => $request->query('guest_group_id'),
                 'is_vip' => $request->has('is_vip') ? $request->boolean('is_vip') : null,
+                'sort' => $request->query('sort'),
             ],
             (int) $request->query('per_page', '15'),
         );
@@ -70,9 +72,30 @@ class GuestController extends Controller
         ]);
     }
 
-    public function import(ImportGuestsRequest $request, Wedding $wedding): JsonResponse
+    public function importPreview(ImportGuestsRequest $request, Wedding $wedding): JsonResponse
     {
-        $result = $this->guestService->importCsv($wedding, $request->file('file'));
+        $result = $this->guestService->previewImportCsv($wedding, $request->file('file'));
+
+        return response()->json([
+            'message' => "Successfully parsed file.",
+            'data' => $result,
+        ]);
+    }
+
+    public function importConfirm(Request $request, Wedding $wedding): JsonResponse
+    {
+        $validated = $request->validate([
+            'guests' => ['required', 'array'],
+            'guests.*.name' => ['required', 'string'],
+            'guests.*.phone' => ['nullable', 'string'],
+            'guests.*.email' => ['nullable', 'string'],
+            'guests.*.address' => ['nullable', 'string'],
+            'guests.*.note' => ['nullable', 'string'],
+            'guests.*.group_name' => ['nullable', 'string'],
+            'guests.*.is_vip' => ['nullable', 'boolean'],
+        ]);
+
+        $result = $this->guestService->importConfirm($wedding, $validated['guests']);
 
         return response()->json([
             'message' => "Imported {$result['imported']} guests ({$result['skipped']} skipped).",
@@ -127,6 +150,22 @@ class GuestController extends Controller
         );
 
         return response()->json(['message' => "Invitation attached to {$updated} guests."]);
+    }
+
+    public function bulkGroup(BulkGroupRequest $request, Wedding $wedding): JsonResponse
+    {
+        $rawIds = $request->input('guest_ids');
+        $guestIds = is_array($rawIds) && count($rawIds) > 0
+            ? array_values(array_map('intval', array_filter($rawIds, 'is_numeric')))
+            : null;
+
+        $updated = $this->guestService->bulkGroup(
+            $wedding,
+            $guestIds,
+            (int) $request->validated('guest_group_id'),
+        );
+
+        return response()->json(['message' => "Group assigned to {$updated} guests."]);
     }
 
     /**

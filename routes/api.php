@@ -157,9 +157,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/guests', [GuestController::class, 'index']);
         Route::post('/guests', [GuestController::class, 'store']);
         Route::delete('/guests', [GuestController::class, 'destroyAll']);
-        Route::post('/guests/import', [GuestController::class, 'import']);
+        Route::post('/guests/import/preview', [GuestController::class, 'importPreview']);
+        Route::post('/guests/import/confirm', [GuestController::class, 'importConfirm']);
         Route::get('/guests/export', [GuestController::class, 'export']);
         Route::post('/guests/bulk-invite', [GuestController::class, 'bulkInvite']);
+        Route::post('/guests/bulk-group', [GuestController::class, 'bulkGroup']);
 
         // Wedding-day QR check-in — gated to plans that include it. Static
         // paths are registered before the {guest} wildcard so "check-in" is
